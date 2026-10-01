@@ -25,6 +25,34 @@ Discord in your terminal, styled after Claude Code but in Discord blurple instea
 
 ## Install
 
+### Option A: download the app (easiest, no Node.js needed)
+
+1. Go to the [**Releases page**](https://github.com/EnSpecielPerson/Discord-Terminal/releases/latest) and download the file for your OS:
+   - **Windows:** `discord-terminal-windows-x64.exe`
+   - **macOS:** `discord-terminal-darwin-arm64` (M1/M2/M3/M4) or `discord-terminal-darwin-x64` (Intel)
+   - **Linux:** `discord-terminal-linux-x64`
+2. Run it **from a terminal**. Use Windows Terminal, PowerShell or cmd on Windows, and Terminal on macOS.
+
+**Windows** (in PowerShell, from your Downloads folder):
+```powershell
+cd ~\Downloads
+.\discord-terminal-windows-x64.exe --demo   # try it with fake data
+.\discord-terminal-windows-x64.exe          # log in for real
+```
+Double-clicking the exe also works; it opens in a console window. If Windows SmartScreen warns you, click **More info → Run anyway**. The exe isn't code-signed, which is normal for small open-source apps.
+
+**macOS / Linux:**
+```sh
+cd ~/Downloads
+chmod +x discord-terminal-*
+xattr -d com.apple.quarantine discord-terminal-darwin-*   # macOS only, removes the "unidentified developer" block
+./discord-terminal-darwin-arm64 --demo
+```
+
+For the best look, use a modern terminal such as Windows Terminal, iTerm2, Ghostty or the default macOS Terminal.
+
+### Option B: run from source
+
 Requires **Node.js 22+**.
 
 ```sh
@@ -102,3 +130,13 @@ src/
   ui/components.js banner, picker, prompt box, spinner, messages
   ui/theme.js     blurple palette, ASCII logo + mascot
 ```
+
+## Building the executables yourself
+
+```sh
+npm install
+bun scripts/build.js                 # all platforms → dist/
+bun scripts/build.js windows-x64     # just the Windows .exe
+```
+
+Pushing a `v*` tag runs `.github/workflows/release.yml`, which builds every platform and publishes a GitHub Release.
