@@ -15,6 +15,7 @@ export const theme = {
 	code: '#E9A6FF',
 	link: '#00A8FC',
 	userBg: '#2B2D31',
+	modalBg: '#232428',
 };
 
 // Stable per-user name colors (Discord-ish role colors).

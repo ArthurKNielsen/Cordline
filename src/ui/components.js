@@ -4,7 +4,7 @@ import {theme, LOGO, LOGO_COLORS, MASCOT, SPINNER, nameColor} from './theme.js';
 import {parseContent, displayName, formatTime, formatBytes, preview} from '../format.js';
 
 const h = React.createElement;
-export const VERSION = '1.0.0';
+export const VERSION = '1.1.0';
 
 // ---------- Logo + welcome banner ----------
 
@@ -25,7 +25,7 @@ export function Banner({columns, user, guildCount, dms, demo}) {
 	const title = ` Discord Terminal v${VERSION} `;
 	const top = `╭───${title}${'─'.repeat(Math.max(width - title.length - 5, 0))}╮`;
 	const name = user?.global_name ?? user?.username ?? 'friend';
-	const wide = width >= 78;
+	const wide = width >= 70;
 	const leftWidth = wide ? Math.floor(width * 0.46) : width - 4;
 	const recent = dms.slice(0, 3);
 
@@ -113,7 +113,7 @@ export function PromptInput({value, cursor, placeholder, columns, masked}) {
 
 // ---------- Selection list (servers / channels / DMs / switcher) ----------
 
-export function Picker({title, subtitle, items, onSelect, onCancel, rows, initialFilter = ''}) {
+export function Picker({title, subtitle, items, onSelect, onCancel, rows, initialFilter = '', width, backgroundColor}) {
 	const [filter, setFilter] = useState(initialFilter);
 	const [index, setIndex] = useState(0);
 	const q = filter.toLowerCase();
@@ -174,7 +174,7 @@ export function Picker({title, subtitle, items, onSelect, onCancel, rows, initia
 
 	return h(
 		Box,
-		{flexDirection: 'column', borderStyle: 'round', borderColor: theme.brand, paddingX: 1, marginTop: 1},
+		{flexDirection: 'column', borderStyle: 'round', borderColor: theme.brand, paddingX: 1, width, backgroundColor},
 		h(Text, {color: theme.brandLight, bold: true}, title),
 		subtitle ? h(Text, {color: theme.subtle}, subtitle) : null,
 		h(Text, null, ' '),
@@ -184,7 +184,7 @@ export function Picker({title, subtitle, items, onSelect, onCancel, rows, initia
 			Text,
 			{color: theme.dim},
 			filter ? h(Text, null, 'Filter: ', h(Text, {color: theme.text}, filter), '  ·  ') : 'Type to filter · ',
-			'↑/↓ to navigate · enter to select · esc to cancel',
+			'↑/↓ navigate · enter select · esc cancel',
 			filtered.length > maxVisible ? `  (${sel + 1}/${filtered.length})` : '',
 		),
 	);
@@ -282,7 +282,12 @@ export function MessageView({msg, client, compact}) {
 			Box,
 			{flexDirection: 'column', marginTop: compact ? 0 : 1},
 			replyLine,
-			h(Box, null, h(Text, {color: theme.subtle}, '> '), h(Box, {flexDirection: 'column', flexGrow: 1}, h(Content, {msg, client, color: theme.subtle}), h(Extras, {msg}))),
+			h(
+				Box,
+				{backgroundColor: theme.userBg, paddingRight: 1},
+				h(Text, {color: theme.subtle}, '> '),
+				h(Box, {flexDirection: 'column', flexGrow: 1}, h(Content, {msg, client, color: theme.text}), h(Extras, {msg})),
+			),
 		);
 	}
 

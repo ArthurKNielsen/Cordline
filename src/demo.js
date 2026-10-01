@@ -207,6 +207,14 @@ export class DemoClient extends DiscordClient {
 	}
 
 	startChatter() {
+		// A few pings that arrive right after login so unread badges show up.
+		const pings = [
+			['g1:clips', 'zed', 'yo who clipped that last round 😭'],
+			['g1:clips', 'mira', 'it was me, posting it rn'],
+			['g2:rust', 'kai', 'borrow checker beat me again'],
+			['dm:u2', 'kai', 'you hopping on tonight?'],
+		];
+		pings.forEach(([channelId, who, text], n) => setTimeout(() => this.emit('message', this.makeMessage(channelId, who, text)), 1200 + n * 150));
 		let i = 0;
 		this.timer = setInterval(() => {
 			const channelId = i % 3 === 2 ? 'dm:u1' : 'g1:general';

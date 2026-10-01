@@ -1,6 +1,6 @@
 {
   "name": "discord-terminal",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Discord, but in your terminal — styled like Claude Code",
   "main": "src/cli.js",
   "scripts": {
@@ -28,6 +28,7 @@
   "dependencies": {
     "ink": "^7.1.1",
     "react": "^19.3.0",
+    "string-width": "^8.3.0",
     "ws": "^8.22.0"
   },
   "type": "module",

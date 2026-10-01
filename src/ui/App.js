@@ -1,19 +1,20 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {Box, Static, Text, useApp, useInput, usePaste, useStdout, useWindowSize} from 'ink';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {Box, Text, useApp, useInput, usePaste, useStdout, useWindowSize} from 'ink';
 import {theme} from './theme.js';
-import {Banner, ChannelHeader, MessageView, Picker, PromptInput, Spinner, SystemLine, TypingLine} from './components.js';
+import {Banner, MessageView, Picker, PromptInput, Spinner, SystemLine, TypingLine} from './components.js';
+import {HOME, MemberList, Panel, ServerRail, Sidebar, sidebarEntries} from './layout.js';
 import {ChannelType, isTextChannel} from '../discord.js';
 import {displayName, preview} from '../format.js';
 
 const h = React.createElement;
 
 export const COMMANDS = [
-	{name: 'servers', desc: 'Browse your servers and their channels'},
-	{name: 'channels', desc: 'Browse channels in the current server'},
-	{name: 'dms', desc: 'Browse your direct messages'},
+	{name: 'servers', desc: 'Pick a server'},
+	{name: 'channels', desc: 'Browse channels in the sidebar (tab)'},
+	{name: 'dms', desc: 'Show your direct messages'},
 	{name: 'goto', desc: 'Jump to any channel or DM (ctrl+k)', args: '[name]'},
 	{name: 'reload', desc: 'Reload messages in the current channel'},
-	{name: 'clear', desc: 'Clear the screen (ctrl+l)'},
+	{name: 'clear', desc: 'Clear the chat view (ctrl+l)'},
 	{name: 'whoami', desc: 'Show the account you are logged in as'},
 	{name: 'help', desc: 'Show help and keyboard shortcuts'},
 	{name: 'logout', desc: 'Forget the saved token and exit'},
@@ -21,22 +22,26 @@ export const COMMANDS = [
 ];
 
 const SHORTCUTS = [
-	['/ for commands', 'ctrl+k to jump anywhere', 'esc to cancel / interrupt'],
-	['↑/↓ for input history', 'ctrl+l to clear screen', '\\⏎ for a newline'],
-	['tab to autocomplete', 'ctrl+u to clear input', 'ctrl+c twice to exit'],
+	['/ for commands', 'ctrl+k to jump anywhere'],
+	['tab to browse channels', '←/→ switch server (while browsing)'],
+	['alt+↑/↓ prev/next channel', 'pgup/pgdn to scroll'],
+	['↑/↓ input history', '\\⏎ for a newline'],
+	['esc to cancel / interrupt', 'ctrl+c twice to exit'],
 ];
 
-let itemSeq = 0;
-const item = (kind, data) => ({id: `i${itemSeq++}`, kind, ...data});
+const MAX_RENDERED = 60;
+let entrySeq = 0;
+const entry = (kind, data) => ({id: `e${entrySeq++}`, kind, ...data});
 
 export function App({client, demo, onLogout}) {
 	const {exit} = useApp();
 	const {stdout} = useStdout();
 	const {columns, rows} = useWindowSize();
 
-	const [items, setItems] = useState(() => [item('banner', {})]);
-	const [staticKey, setStaticKey] = useState(0);
+	const [guildId, setGuildId] = useState(() => client.sortedGuilds()[0]?.id ?? HOME);
 	const [current, setCurrent] = useState(null);
+	const [focus, setFocus] = useState('input'); // 'input' | 'nav'
+	const [navCursor, setNavCursor] = useState(0);
 	const [overlay, setOverlay] = useState(null);
 	const [value, setValue] = useState('');
 	const [cursor, setCursor] = useState(0);
@@ -46,13 +51,15 @@ export function App({client, demo, onLogout}) {
 	const [notice, setNotice] = useState(null);
 	const [showHelp, setShowHelp] = useState(false);
 	const [acIndex, setAcIndex] = useState(0);
+	const [scroll, setScroll] = useState(0);
 	const [status, setStatus] = useState('connected');
-	const [, forceUpdate] = useState(0);
+	const [, setTick] = useState(0);
+	const rerender = useCallback(() => setTick(x => x + 1), []);
 
+	const entriesRef = useRef(new Map()); // channelId | 'home' -> entries
 	const currentRef = useRef(null);
 	const loadRef = useRef(0);
 	const pendingRef = useRef(null);
-	const lastMsgRef = useRef(null);
 	const historyRef = useRef({list: [], index: -1, draft: ''});
 	const ctrlCRef = useRef(0);
 	const noticeTimer = useRef(null);
@@ -63,24 +70,19 @@ export function App({client, demo, onLogout}) {
 		noticeTimer.current = setTimeout(() => setNotice(null), ms);
 	}, []);
 
-	const push = useCallback((...newItems) => setItems(prev => [...prev, ...newItems]), []);
-
-	const messageItem = useCallback(msg => {
-		const last = lastMsgRef.current;
-		const t = new Date(msg.timestamp).getTime();
-		const compact = Boolean(last && last.channelId === msg.channel_id && last.authorId === msg.author?.id && t - last.time < 7 * 60000 && !msg.referenced_message && msg.type === 0);
-		lastMsgRef.current = {channelId: msg.channel_id, authorId: msg.author?.id, time: t};
-		return item('message', {msg, compact});
-	}, []);
-
-	const channelLabel = useCallback(
-		ch => {
-			if (!ch) return '';
-			if (ch.guild_id) return `#${ch.name}`;
-			return `@${client.dmName(ch)}`;
+	const push = useCallback(
+		(key, ...items) => {
+			const k = key ?? 'home';
+			entriesRef.current.set(k, [...(entriesRef.current.get(k) ?? []), ...items]);
+			rerender();
 		},
-		[client],
+		[rerender],
 	);
+	const pushHere = useCallback((...items) => push(currentRef.current, ...items), [push]);
+
+	const channelLabel = useCallback(ch => (!ch ? '' : ch.guild_id ? `#${ch.name}` : `@${client.dmName(ch)}`), [client]);
+
+	const entries = useMemo(() => sidebarEntries(client, guildId), [client, guildId, unread, current]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	// ---------- Gateway events ----------
 
@@ -92,60 +94,64 @@ export function App({client, demo, onLogout}) {
 				const {[msg.author.id]: _, ...rest} = t;
 				return rest;
 			});
-			if (msg.channel_id === currentRef.current) {
-				if (pendingRef.current) pendingRef.current.push(msg);
-				else push(messageItem(msg));
+			if (pendingRef.current && msg.channel_id === currentRef.current) {
+				pendingRef.current.push(msg);
 				return;
 			}
-			if (msg.author?.id === client.user?.id) return;
+			if (entriesRef.current.has(msg.channel_id)) push(msg.channel_id, entry('msg', {msg}));
+			if (msg.channel_id === currentRef.current || msg.author?.id === client.user?.id) return;
 			setUnread(u => ({...u, [msg.channel_id]: (u[msg.channel_id] ?? 0) + 1}));
 			const ch = client.channels.get(msg.channel_id);
 			const mentioned = msg.mentions?.some(u => u.id === client.user?.id);
 			if (ch && (!ch.guild_id || mentioned)) {
 				const where = ch.guild_id ? ` in #${ch.name}` : '';
-				flash(`✉ ${displayName(msg.author, msg.member)}${where}: ${preview(msg, 50)}  · ctrl+k to jump`);
+				flash(`✉ ${displayName(msg.author, msg.member)}${where}: ${preview(msg, 50)}`);
 			}
 		};
 		const onTyping = d => {
 			if (d.channel_id !== currentRef.current) return;
 			const user = d._user ?? d.member?.user ?? client.users.get(d.user_id);
-			const name = displayName(user, d.member);
-			setTypers(t => ({...t, [d.user_id]: {name, until: Date.now() + 10000}}));
+			setTypers(t => ({...t, [d.user_id]: {name: displayName(user, d.member), until: Date.now() + 10000}}));
 		};
-		const onUpdate = () => forceUpdate(x => x + 1);
 		const onStatus = s => setStatus(s);
-		const onFatal = err => push(item('system', {level: 'error', lines: [`⎿  ${err.message}`]}));
+		const onFatal = err => pushHere(entry('system', {level: 'error', lines: [`⎿  ${err.message}`]}));
 		client.on('message', onMessage);
 		client.on('typing', onTyping);
-		client.on('update', onUpdate);
+		client.on('update', rerender);
 		client.on('status', onStatus);
 		client.on('fatal', onFatal);
 		return () => {
 			client.off('message', onMessage);
 			client.off('typing', onTyping);
-			client.off('update', onUpdate);
+			client.off('update', rerender);
 			client.off('status', onStatus);
 			client.off('fatal', onFatal);
 		};
-	}, [client, push, messageItem, flash]);
+	}, [client, push, pushHere, rerender, flash]);
 
 	// ---------- Navigation ----------
 
 	const openChannel = useCallback(
-		async channelId => {
+		async (channelId, {reload = false} = {}) => {
 			const ch = client.channels.get(channelId);
-			if (!ch) return;
+			if (!ch || !isTextChannel(ch)) return;
 			const label = channelLabel(ch);
-			const guild = ch.guild_id ? client.guilds.get(ch.guild_id) : null;
+			const gid = ch.guild_id ?? HOME;
 			setOverlay(null);
+			setFocus('input');
+			setGuildId(gid);
+			const idx = sidebarEntries(client, gid).findIndex(e => e.id === channelId);
+			if (idx >= 0) setNavCursor(idx);
 			setCurrent(channelId);
 			currentRef.current = channelId;
 			setTypers({});
+			setScroll(0);
 			setUnread(u => {
 				const {[channelId]: _, ...rest} = u;
 				return rest;
 			});
 			stdout.write(`\x1b]0;Discord · ${label}\x07`);
+			if (entriesRef.current.has(channelId) && !reload) return;
 			const token = ++loadRef.current;
 			pendingRef.current = [];
 			setLoading({label: `Loading ${label}…`, startedAt: Date.now()});
@@ -155,99 +161,87 @@ export function App({client, demo, onLogout}) {
 				const seen = new Set(msgs.map(m => m.id));
 				const late = pendingRef.current.filter(m => !seen.has(m.id));
 				pendingRef.current = null;
-				lastMsgRef.current = null;
-				const where = guild ? guild.name : ch.type === ChannelType.GROUP_DM ? 'Group DM' : 'Direct message';
-				const detail = [where, `${msgs.length} message${msgs.length === 1 ? '' : 's'} loaded`, ch.topic].filter(Boolean).join(' · ');
-				push(item('channel', {label, detail}), ...[...msgs, ...late].map(messageItem));
+				const list = [...msgs, ...late].map(msg => entry('msg', {msg}));
+				if (msgs.length < 50) list.unshift(entry('start', {ch}));
+				entriesRef.current.set(channelId, list);
 			} catch (err) {
 				if (token !== loadRef.current) return;
 				pendingRef.current = null;
-				const msg = err.status === 403 ? "You don't have permission to read this channel." : err.message;
-				push(item('channel', {label, detail: guild?.name ?? 'Direct message'}), item('system', {level: 'error', tight: true, lines: [`  ⎿  ${msg}`]}));
+				const text = err.status === 403 ? "You don't have permission to read this channel." : err.message;
+				entriesRef.current.set(channelId, [entry('system', {level: 'error', lines: [`⎿  ${text}`]})]);
 			} finally {
 				if (token === loadRef.current) setLoading(null);
+				rerender();
 			}
 		},
-		[client, channelLabel, push, messageItem, stdout],
+		[client, channelLabel, rerender, stdout],
 	);
 
-	const guildUnread = useCallback(guild => [...guild.channels.keys()].reduce((n, id) => n + (unread[id] ?? 0), 0), [unread]);
-
-	const openChannels = useCallback(
-		guildId => {
-			const guild = client.guilds.get(guildId);
-			const channels = client.guildChannels(guildId);
-			setOverlay({
-				title: `${guild.name} › Select a channel`,
-				subtitle: `${channels.filter(isTextChannel).length} text channels`,
-				items: channels.map(ch => {
-					const voice = ch.type === ChannelType.VOICE || ch.type === ChannelType.STAGE;
-					const forum = ch.type === ChannelType.FORUM || ch.type === ChannelType.MEDIA;
-					return {
-						key: ch.id,
-						value: ch.id,
-						label: ch.name,
-						icon: voice ? '🔊' : forum ? '💬' : ch.type === ChannelType.ANNOUNCEMENT ? '📣' : '#',
-						group: ch.category ?? '',
-						hint: voice ? 'voice · not supported' : forum ? 'forum · not supported' : ch.id === currentRef.current ? 'current' : undefined,
-						disabled: voice || forum,
-						badge: unread[ch.id],
-					};
-				}),
-				onSelect: it => openChannel(it.value),
-			});
+	const selectGuild = useCallback(
+		gid => {
+			setGuildId(gid);
+			const list = sidebarEntries(client, gid);
+			const curIdx = list.findIndex(e => e.id === currentRef.current);
+			setNavCursor(
+				curIdx >= 0
+					? curIdx
+					: Math.max(
+							list.findIndex(e => e.selectable),
+							0,
+						),
+			);
 		},
-		[client, openChannel, unread],
+		[client],
 	);
 
-	const openServers = useCallback(() => {
+	const railOrder = useMemo(() => [HOME, ...client.sortedGuilds().map(g => g.id)], [client, status]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	const stepChannel = useCallback(
+		dir => {
+			const list = sidebarEntries(client, guildId);
+			let i = list.findIndex(e => e.id === currentRef.current);
+			for (let n = 0; n < list.length; n++) {
+				i = (i + dir + list.length) % list.length;
+				if (list[i]?.selectable) return openChannel(list[i].id);
+			}
+		},
+		[client, guildId, openChannel],
+	);
+
+	const openServerPicker = useCallback(() => {
 		const guilds = client.sortedGuilds();
 		setOverlay({
 			title: 'Select a server',
 			subtitle: `You are in ${guilds.length} server${guilds.length === 1 ? '' : 's'}`,
-			items: guilds.map(g => ({key: g.id, value: g.id, label: g.name, hint: `${client.guildChannels(g.id).filter(isTextChannel).length} channels`, badge: guildUnread(g) || undefined})),
-			onSelect: it => openChannels(it.value),
-		});
-	}, [client, guildUnread, openChannels]);
-
-	const openDMs = useCallback(() => {
-		const dms = client.sortedDMs();
-		setOverlay({
-			title: 'Direct Messages',
-			subtitle: client.isBot ? 'Bots only see DMs that were opened while running' : `${dms.length} conversations`,
-			items: dms.map(dm => ({
-				key: dm.id,
-				value: dm.id,
-				label: client.dmName(dm),
-				icon: dm.type === ChannelType.GROUP_DM ? '👥' : '@',
-				hint: dm.type === ChannelType.GROUP_DM ? `${dm.recipients?.length ?? 0} members` : dm.recipients?.[0]?.username ? `@${dm.recipients[0].username}` : undefined,
-				badge: unread[dm.id],
+			items: guilds.map(g => ({
+				key: g.id,
+				value: g.id,
+				label: g.name,
+				hint: `${client.guildChannels(g.id).filter(isTextChannel).length} channels`,
+				badge: [...g.channels.keys()].reduce((n, id) => n + (unread[id] ?? 0), 0) || undefined,
 			})),
-			onSelect: it => openChannel(it.value),
+			onSelect: it => {
+				setOverlay(null);
+				selectGuild(it.value);
+				setFocus('nav');
+			},
 		});
-	}, [client, openChannel, unread]);
+	}, [client, unread, selectGuild]);
 
 	const openSwitcher = useCallback(
 		(initialFilter = '') => {
 			const list = [];
-			for (const dm of client.sortedDMs()) list.push({key: dm.id, value: dm.id, label: client.dmName(dm), icon: '@', hint: 'DM', group: 'Direct Messages', badge: unread[dm.id]});
+			for (const dm of client.sortedDMs()) list.push({key: dm.id, value: dm.id, label: client.dmName(dm), icon: '@', group: 'Direct Messages', badge: unread[dm.id]});
 			for (const g of client.sortedGuilds()) {
 				for (const ch of client.guildChannels(g.id).filter(isTextChannel)) {
 					list.push({key: ch.id, value: ch.id, label: ch.name, icon: '#', search: g.name, group: g.name, badge: unread[ch.id]});
 				}
 			}
-			list.sort((a, b) => (b.badge ?? 0) - (a.badge ?? 0) || 0);
+			list.sort((a, b) => (b.badge ?? 0) - (a.badge ?? 0));
 			setOverlay({title: 'Jump to…', subtitle: 'Search every channel and DM', items: list, onSelect: it => openChannel(it.value), initialFilter});
 		},
 		[client, openChannel, unread],
 	);
-
-	const clearScreen = useCallback(() => {
-		stdout.write('\x1b[2J\x1b[3J\x1b[H');
-		lastMsgRef.current = null;
-		setItems([]);
-		setStaticKey(k => k + 1);
-	}, [stdout]);
 
 	const quit = useCallback(() => {
 		client.destroy();
@@ -260,49 +254,40 @@ export function App({client, demo, onLogout}) {
 		line => {
 			const [cmd, ...rest] = line.slice(1).split(' ');
 			const arg = rest.join(' ').trim();
-			push(item('system', {title: true, lines: [`> /${cmd}${arg ? ` ${arg}` : ''}`]}));
+			const echo = entry('system', {title: true, lines: [`> /${cmd}${arg ? ` ${arg}` : ''}`]});
+			const reply = (lines, level) => pushHere(echo, entry('system', {level, tight: true, lines}));
 			switch (cmd) {
 				case 'servers':
 				case 's':
-					return openServers();
+					return openServerPicker();
 				case 'channels':
-				case 'c': {
-					const ch = client.channels.get(currentRef.current);
-					return ch?.guild_id ? openChannels(ch.guild_id) : openServers();
-				}
+				case 'c':
+					return setFocus('nav');
 				case 'dms':
 				case 'dm':
-					return openDMs();
+					selectGuild(HOME);
+					return setFocus('nav');
 				case 'goto':
 				case 'switch':
 					return openSwitcher(arg);
 				case 'reload':
-					if (!currentRef.current) return push(item('system', {level: 'error', tight: true, lines: ['  ⎿  No channel open — try /servers']}));
-					return openChannel(currentRef.current);
+					if (!currentRef.current) return reply(['  ⎿  No channel open — pick one in the sidebar (tab)'], 'error');
+					return openChannel(currentRef.current, {reload: true});
 				case 'clear':
-					return clearScreen();
+					entriesRef.current.set(currentRef.current ?? 'home', []);
+					return rerender();
 				case 'whoami':
-					return push(
-						item('system', {
-							tight: true,
-							lines: [
-								`  ⎿  Logged in as ${client.user.global_name ?? client.user.username} (@${client.user.username}) · ${client.isBot ? 'bot account' : demo ? 'demo account' : 'user account'} · ${client.guilds.size} servers`,
-							],
-						}),
-					);
+					return reply([
+						`  ⎿  Logged in as ${client.user.global_name ?? client.user.username} (@${client.user.username}) · ${client.isBot ? 'bot account' : demo ? 'demo account' : 'user account'} · ${client.guilds.size} servers`,
+					]);
 				case 'help':
-					return push(
-						item('system', {
-							tight: true,
-							lines: [
-								'  ⎿  Commands',
-								...COMMANDS.map(c => `       /${(c.name + (c.args ? ` ${c.args}` : '')).padEnd(14)} ${c.desc}`),
-								'',
-								'     Shortcuts',
-								...SHORTCUTS.flat().map(s => `       ${s}`),
-							],
-						}),
-					);
+					return reply([
+						'  ⎿  Commands',
+						...COMMANDS.map(c => `       /${(c.name + (c.args ? ` ${c.args}` : '')).padEnd(14)} ${c.desc}`),
+						'',
+						'     Shortcuts',
+						...SHORTCUTS.flat().map(s => `       ${s}`),
+					]);
 				case 'logout':
 					onLogout?.();
 					return quit();
@@ -310,10 +295,10 @@ export function App({client, demo, onLogout}) {
 				case 'quit':
 					return quit();
 				default:
-					return push(item('system', {level: 'error', tight: true, lines: [`  ⎿  Unknown command /${cmd} — type /help`]}));
+					return reply([`  ⎿  Unknown command /${cmd} — type /help`], 'error');
 			}
 		},
-		[client, demo, push, openServers, openChannels, openDMs, openSwitcher, openChannel, clearScreen, quit, onLogout],
+		[client, demo, pushHere, openServerPicker, selectGuild, openSwitcher, openChannel, rerender, quit, onLogout],
 	);
 
 	const submit = useCallback(async () => {
@@ -321,6 +306,7 @@ export function App({client, demo, onLogout}) {
 		setValue('');
 		setCursor(0);
 		setShowHelp(false);
+		setScroll(0);
 		if (!text) return;
 		const hist = historyRef.current;
 		hist.list.push(text);
@@ -328,15 +314,15 @@ export function App({client, demo, onLogout}) {
 		if (text.startsWith('/')) return runCommand(text);
 		const channelId = currentRef.current;
 		if (!channelId) {
-			push(item('system', {lines: [`> ${text}`]}), item('system', {level: 'error', tight: true, lines: ['  ⎿  No channel open yet — use /servers, /dms or ctrl+k to pick one']}));
+			pushHere(entry('system', {lines: [`> ${text}`]}), entry('system', {level: 'error', tight: true, lines: ['  ⎿  No channel open yet — press tab to browse, or ctrl+k to jump']}));
 			return;
 		}
 		try {
 			await client.sendMessage(channelId, text);
 		} catch (err) {
-			push(item('system', {lines: [`> ${text}`], tight: false}), item('system', {level: 'error', tight: true, lines: [`  ⎿  Failed to send: ${err.message}`]}));
+			pushHere(entry('system', {lines: [`> ${text}`]}), entry('system', {level: 'error', tight: true, lines: [`  ⎿  Failed to send: ${err.message}`]}));
 		}
-	}, [value, client, push, runCommand]);
+	}, [value, client, pushHere, runCommand]);
 
 	// ---------- Input ----------
 
@@ -355,6 +341,34 @@ export function App({client, demo, onLogout}) {
 
 	usePaste(text => insert(text.replace(/\r\n?/g, '\n')), {isActive: !overlay});
 
+	const handleNav = (input, key) => {
+		if (key.escape || key.tab) return setFocus('input');
+		if (key.upArrow || key.downArrow) {
+			const dir = key.upArrow ? -1 : 1;
+			let i = navCursor;
+			for (let n = 0; n < entries.length; n++) {
+				i += dir;
+				if (i < 0 || i >= entries.length) return;
+				if (entries[i].selectable) return setNavCursor(i);
+			}
+			return;
+		}
+		if (key.leftArrow || key.rightArrow) {
+			const idx = railOrder.indexOf(guildId);
+			const next = railOrder[(idx + (key.leftArrow ? -1 : 1) + railOrder.length) % railOrder.length];
+			return selectGuild(next);
+		}
+		if (key.return) {
+			const e = entries[navCursor];
+			if (e?.selectable) openChannel(e.id);
+			return;
+		}
+		if (input && !key.ctrl && !key.meta) {
+			setFocus('input');
+			insert(input);
+		}
+	};
+
 	useInput(
 		(input, key) => {
 			if (key.ctrl && input === 'c') {
@@ -369,7 +383,15 @@ export function App({client, demo, onLogout}) {
 				return;
 			}
 			if (key.ctrl && input === 'k') return openSwitcher();
-			if (key.ctrl && input === 'l') return clearScreen();
+			if (key.ctrl && input === 'l') {
+				entriesRef.current.set(currentRef.current ?? 'home', []);
+				return rerender();
+			}
+			if (key.pageUp) return setScroll(s => s + 5);
+			if (key.pageDown) return setScroll(s => Math.max(s - 5, 0));
+			if (key.meta && (key.upArrow || key.downArrow)) return stepChannel(key.upArrow ? -1 : 1);
+			if (focus === 'nav') return handleNav(input, key);
+
 			if (key.ctrl && input === 'u') {
 				setValue(v => v.slice(cursor));
 				setCursor(0);
@@ -388,10 +410,11 @@ export function App({client, demo, onLogout}) {
 					loadRef.current++;
 					pendingRef.current = null;
 					setLoading(null);
-					push(item('system', {level: 'error', tight: true, lines: ['  ⎿  Interrupted']}));
+					pushHere(entry('system', {level: 'error', tight: true, lines: ['  ⎿  Interrupted']}));
 					return;
 				}
 				if (showHelp) return setShowHelp(false);
+				setScroll(0);
 				setValue('');
 				setCursor(0);
 				return;
@@ -415,8 +438,18 @@ export function App({client, demo, onLogout}) {
 					const v = `/${acMatches[acSel].name} `;
 					setValue(v);
 					setCursor(v.length);
+					return;
 				}
-				return;
+				const idx = entries.findIndex(e => e.id === currentRef.current);
+				setNavCursor(
+					idx >= 0
+						? idx
+						: Math.max(
+								entries.findIndex(e => e.selectable),
+								0,
+							),
+				);
+				return setFocus('nav');
 			}
 			if (key.upArrow || key.downArrow) {
 				if (acMatches.length) {
@@ -467,70 +500,156 @@ export function App({client, demo, onLogout}) {
 		{isActive: !overlay},
 	);
 
-	// ---------- Render ----------
+	// ---------- Layout ----------
 
 	const ch = current ? client.channels.get(current) : null;
 	const guild = ch?.guild_id ? client.guilds.get(ch.guild_id) : null;
-	const placeholder = ch ? `Message ${channelLabel(ch)}` : 'Type /servers to pick a channel, or press ctrl+k';
-	const totalUnread = Object.values(unread).reduce((a, b) => a + b, 0);
+	const height = Math.max(rows - 1, 10);
+	const railW = columns >= 90 ? 8 : 0;
+	const sideW = columns >= 70 ? 28 : 0;
+	const membersW = columns >= 125 ? 26 : 0;
+	const mainW = columns - railW - sideW - membersW;
+	const mainInner = mainW - 2;
 
-	const renderItem = it => {
-		switch (it.kind) {
-			case 'banner': {
-				const dms = client.sortedDMs().map(dm => ({id: dm.id, _label: client.dmName(dm)}));
-				return h(Banner, {key: it.id, columns, user: client.user, guildCount: client.guilds.size, dms, demo});
-			}
-			case 'message':
-				return h(MessageView, {key: it.id, msg: it.msg, client, compact: it.compact});
-			case 'channel':
-				return h(ChannelHeader, {key: it.id, item: it});
-			default:
-				return h(SystemLine, {key: it.id, item: it});
+	const list = entriesRef.current.get(current ?? 'home') ?? [];
+	const end = Math.max(list.length - scroll, 0);
+	const shown = list.slice(Math.max(end - MAX_RENDERED, 0), end);
+	const hiddenBelow = list.length - end;
+
+	const authors = useMemo(() => {
+		const seen = new Map();
+		for (const e of list) if (e.kind === 'msg' && e.msg.author && !seen.has(e.msg.author.id)) seen.set(e.msg.author.id, e.msg.author);
+		return [...seen.values()];
+	}, [list, list.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	const unreadByGuild = {};
+	let totalUnread = 0;
+	for (const [id, n] of Object.entries(unread)) {
+		const c = client.channels.get(id);
+		const g = c?.guild_id ?? HOME;
+		unreadByGuild[g] = (unreadByGuild[g] ?? 0) + n;
+		totalUnread += n;
+	}
+
+	const renderEntry = (e, i) => {
+		if (e.kind === 'msg') {
+			const prev = shown[i - 1];
+			const p = prev?.kind === 'msg' ? prev.msg : null;
+			const compact = Boolean(p && p.author?.id === e.msg.author?.id && new Date(e.msg.timestamp) - new Date(p.timestamp) < 7 * 60000 && !e.msg.referenced_message && e.msg.type === 0);
+			return h(MessageView, {key: e.id, msg: e.msg, client, compact});
 		}
+		if (e.kind === 'start') {
+			const label = channelLabel(e.ch);
+			return h(
+				Box,
+				{key: e.id, flexDirection: 'column', marginTop: 1},
+				h(Text, {color: theme.brand, bold: true}, e.ch.guild_id ? '  ╭───╮\n  │ # │\n  ╰───╯' : '  ╭───╮\n  │ @ │\n  ╰───╯'),
+				h(Text, {bold: true}, `Welcome to ${label}!`),
+				h(
+					Text,
+					{color: theme.subtle},
+					e.ch.guild_id ? `This is the start of the ${label} channel.${e.ch.topic ? ` ${e.ch.topic}` : ''}` : `This is the beginning of your direct message history with ${label}.`,
+				),
+			);
+		}
+		return h(SystemLine, {key: e.id, item: e});
 	};
+
+	const welcome = h(
+		Box,
+		{flexDirection: 'column', flexGrow: 1, justifyContent: 'center'},
+		h(Banner, {columns: mainInner - 1, user: client.user, guildCount: client.guilds.size, dms: client.sortedDMs().map(dm => ({id: dm.id, _label: client.dmName(dm)})), demo}),
+	);
 
 	const footer = showHelp
 		? h(
 				Box,
-				{flexDirection: 'column', paddingX: 2},
-				...SHORTCUTS.map((row, i) => h(Box, {key: i}, ...row.map((s, j) => h(Box, {key: j, width: Math.floor((columns - 4) / 3)}, h(Text, {color: theme.subtle}, s))))),
+				{flexDirection: 'column', paddingX: 1},
+				...SHORTCUTS.map((row, i) => h(Box, {key: i}, ...row.map((s, j) => h(Box, {key: j, width: Math.floor((mainInner - 2) / 2)}, h(Text, {color: theme.subtle, wrap: 'truncate-end'}, s))))),
 			)
 		: acMatches.length
 			? h(
 					Box,
-					{flexDirection: 'column', paddingX: 2},
+					{flexDirection: 'column', paddingX: 1},
 					...acMatches.map((c, i) =>
 						h(
 							Box,
 							{key: c.name},
-							h(Box, {width: 22}, h(Text, {color: i === acSel ? theme.brandLight : theme.subtle, bold: i === acSel}, `/${c.name}${c.args ? ` ${c.args}` : ''}`)),
-							h(Text, {color: i === acSel ? theme.brandLight : theme.dim}, c.desc),
+							h(Box, {width: 20, flexShrink: 0}, h(Text, {color: i === acSel ? theme.brandLight : theme.subtle, bold: i === acSel}, `/${c.name}${c.args ? ` ${c.args}` : ''}`)),
+							h(Text, {color: i === acSel ? theme.brandLight : theme.dim, wrap: 'truncate-end'}, c.desc),
 						),
 					),
 				)
-			: h(
-					Box,
-					{paddingX: 2, justifyContent: 'space-between'},
-					h(Text, {color: theme.dim}, notice?.color === theme.subtle ? notice.text : '? for shortcuts'),
-					h(
-						Text,
-						null,
-						totalUnread ? h(Text, {color: theme.red}, `● ${totalUnread} unread  `) : null,
-						h(Text, {color: status === 'connected' ? theme.green : theme.yellow}, '● '),
-						ch
-							? h(Text, {color: theme.brandLight}, channelLabel(ch), guild ? h(Text, {color: theme.subtle}, ` · ${guild.name}`) : null)
-							: h(Text, {color: theme.subtle}, status === 'connected' ? (demo ? 'demo' : 'connected') : 'reconnecting…'),
-					),
-				);
+			: null;
 
+	const mainTitle = ch ? channelLabel(ch) : 'Discord Terminal';
+	const mainRight = ch?.topic ?? (ch && !ch.guild_id ? (ch.type === ChannelType.GROUP_DM ? 'Group DM' : 'Direct message') : guild?.name);
+	const placeholder = ch ? `Message ${channelLabel(ch)}` : 'Press tab to browse channels, or ctrl+k to jump anywhere';
+
+	const main = h(
+		Panel,
+		{
+			title: mainTitle,
+			titleColor: theme.brandLight,
+			right: mainRight && mainRight.length < mainInner - mainTitle.length - 12 ? mainRight : undefined,
+			width: mainW,
+			height,
+			focused: focus === 'input',
+		},
+		h(
+			Box,
+			{flexDirection: 'column', flexGrow: 1, flexShrink: 1, justifyContent: 'flex-end', overflow: 'hidden', paddingX: 1},
+			!ch && !list.length ? welcome : shown.map((e, i) => h(Box, {key: e.id, flexShrink: 0, flexDirection: 'column'}, renderEntry(e, i))),
+		),
+		h(
+			Box,
+			{flexDirection: 'column', flexShrink: 0, paddingX: 1},
+			loading ? h(Spinner, {label: loading.label, startedAt: loading.startedAt}) : null,
+			hiddenBelow ? h(Text, {color: theme.yellow}, `↓ ${hiddenBelow} newer message${hiddenBelow === 1 ? '' : 's'} · pgdn or esc to jump back`) : null,
+			notice && notice.color !== theme.subtle ? h(Box, {marginTop: 1}, h(Text, {color: notice.color, wrap: 'truncate-end'}, notice.text)) : null,
+			h(Box, {height: 1}, Object.keys(typers).length ? h(TypingLine, {typers}) : null),
+			h(PromptInput, {value, cursor, placeholder, columns: mainInner - 1}),
+		),
+		footer,
+	);
+
+	const where = ch ? `${guild ? guild.name : 'DMs'} › ${channelLabel(ch)}` : status === 'connected' ? (demo ? 'demo mode' : 'connected') : 'reconnecting…';
+	const statusBar = h(
+		Box,
+		{paddingX: 1, justifyContent: 'space-between', width: columns, height: 1},
+		h(
+			Text,
+			{color: theme.dim, wrap: 'truncate-end'},
+			notice?.color === theme.subtle ? notice.text : focus === 'nav' ? '↑/↓ select · enter open · ←/→ switch server · esc back to chat' : '? for shortcuts · tab browse channels · ctrl+k jump',
+		),
+		h(
+			Text,
+			{wrap: 'truncate-start'},
+			totalUnread ? h(Text, {color: theme.red}, `● ${totalUnread} unread   `) : null,
+			h(Text, {color: status === 'connected' ? theme.green : theme.yellow}, '● '),
+			h(Text, {color: theme.subtle}, where),
+		),
+	);
+
+	const modalW = Math.min(72, columns - 6);
 	return h(
 		Box,
-		{flexDirection: 'column'},
-		h(Static, {key: staticKey, items}, renderItem),
-		loading ? h(Spinner, {label: loading.label, startedAt: loading.startedAt}) : null,
-		overlay ? h(Picker, {...overlay, key: overlay.title, rows, onCancel: () => setOverlay(null)}) : null,
-		notice && notice.color !== theme.subtle ? h(Box, {marginTop: 1, paddingX: 1}, h(Text, {color: notice.color}, notice.text)) : null,
-		h(Box, {marginTop: 1, flexDirection: 'column'}, Object.keys(typers).length ? h(TypingLine, {typers}) : null, h(PromptInput, {value, cursor, placeholder, columns})),
-		footer,
+		{flexDirection: 'column', width: columns, height: rows},
+		h(
+			Box,
+			{height},
+			railW ? h(ServerRail, {client, selected: guildId, unreadByGuild, height}) : null,
+			sideW ? h(Sidebar, {client, guildId, entries, current, cursor: navCursor, focused: focus === 'nav', unread, width: sideW, height, demo}) : null,
+			main,
+			membersW ? h(MemberList, {client, channel: ch, authors, width: membersW, height}) : null,
+		),
+		statusBar,
+		overlay
+			? h(
+					Box,
+					{position: 'absolute', top: 3, left: Math.floor((columns - modalW) / 2), width: modalW},
+					h(Picker, {...overlay, key: overlay.title, rows, width: modalW, backgroundColor: theme.modalBg, onCancel: () => setOverlay(null)}),
+				)
+			: null,
 	);
 }

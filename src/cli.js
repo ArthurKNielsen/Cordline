@@ -73,7 +73,7 @@ export async function main(argv) {
 		}
 	}
 
-	const instance = render(h(Root, {initialClient: client, demo}), {exitOnCtrlC: false});
+	const instance = render(h(Root, {initialClient: client, demo}), {exitOnCtrlC: false, alternateScreen: true, incrementalRendering: true});
 	await instance.waitUntilExit();
 	process.stdout.write('\x1b]0;\x07');
 	process.exit(0);

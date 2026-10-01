@@ -2,26 +2,27 @@
 
 Discord in your terminal, styled after Claude Code but in Discord blurple instead of orange.
 
-![welcome screen](docs/screenshots/welcome.png)
+![chat view](docs/screenshots/typing.png)
 
 ## Features
 
-- **Claude Code-style UI.** It has the same layout as Claude Code: a welcome banner, a rounded `>` prompt box, `/` command autocomplete, `●` message bullets, `⎿` result lines, a `✻` spinner with "esc to interrupt", and `? for shortcuts`.
-- **Your real Discord.** You can browse your servers, channels by category, DMs and group DMs. It loads message history and receives new messages live over the Discord Gateway.
-- **Sending messages**, with input history, multi-line input (`\` + Enter) and paste support.
-- **Quick switcher.** Press `ctrl+k` to fuzzy-jump to any channel or DM.
-- **Unread counters and notifications** for DMs and mentions in other channels.
-- **Typing indicators** ("Nova is typing...").
+- **Discord layout.** The full-screen view has a server rail, a channel sidebar with categories, the chat in the middle and a member list on the right. Unread badges appear on servers and channels, plus a "Welcome to #channel!" header at the start of each channel.
+- **Claude Code look.** Panels have rounded borders with titles set into the border, and the app uses the `>` prompt box, `/` command autocomplete, `●` message bullets, `❯` selection, the `✻` spinner with "esc to interrupt", and a `? for shortcuts` status line, all in Discord blurple. Your own messages are shown as highlighted `>` lines, the same way Claude Code shows what you typed.
+- **Your real Discord.** You can browse servers, channels, DMs and group DMs. Message history loads when you open a channel, and new messages arrive live over the Discord Gateway.
+- **Keyboard navigation.** `tab` moves to the sidebar, `←/→` switches servers, `alt+↑/↓` moves to the previous or next channel, `ctrl+k` opens a quick switcher, and `pgup/pgdn` scrolls.
+- **Live updates.** You get typing indicators ("Nova is typing..."), DM and mention notifications, and an unread counter.
 - **Discord markdown** rendering: **bold**, *italics*, `code`, code blocks, quotes, spoilers, mentions, channel links, custom emoji, timestamps, attachments and embeds.
-- **Permission-aware.** Channels you can't see are hidden. Voice and forum channels are shown but can't be opened.
+- **Permission-aware.** Channels you can't see are hidden.
+- **Adapts to window size.** The member list and server rail hide themselves in smaller terminals.
 - **Demo mode** with fake servers, so you can try it without logging in.
 
 | | |
 |---|---|
-| ![commands](docs/screenshots/commands.png) | ![channels](docs/screenshots/channels.png) |
-| ![chat](docs/screenshots/chat.png) | ![switcher](docs/screenshots/switcher.png) |
-| ![code](docs/screenshots/code.png) | ![dm](docs/screenshots/dm.png) |
-| ![login](docs/screenshots/login.png) | ![shortcuts](docs/screenshots/shortcuts.png) |
+| ![welcome](docs/screenshots/welcome.png) | ![browse channels](docs/screenshots/browse.png) |
+| ![chat](docs/screenshots/chat.png) | ![quick switcher](docs/screenshots/switcher.png) |
+| ![code blocks](docs/screenshots/code.png) | ![DMs](docs/screenshots/dm.png) |
+| ![commands](docs/screenshots/commands.png) | ![shortcuts](docs/screenshots/shortcuts.png) |
+| ![login](docs/screenshots/login.png) | |
 
 ## Install
 
@@ -92,12 +93,12 @@ You can also pass a token directly: `DISCORD_TOKEN=... discord-terminal`, or `di
 
 | Command | |
 |---|---|
-| `/servers` | Browse servers, then their channels |
-| `/channels` | Browse channels in the current server |
-| `/dms` | Browse direct messages |
+| `/servers` | Pick a server |
+| `/channels` | Move to the channel sidebar |
+| `/dms` | Show your direct messages in the sidebar |
 | `/goto [name]` | Jump to any channel or DM |
 | `/reload` | Reload the current channel |
-| `/clear` | Clear the screen |
+| `/clear` | Clear the chat view |
 | `/whoami` | Show the logged-in account |
 | `/help` | Help |
 | `/logout` | Forget the token and exit |
@@ -105,13 +106,15 @@ You can also pass a token directly: `DISCORD_TOKEN=... discord-terminal`, or `di
 
 | Key | |
 |---|---|
+| `tab` | Move to the channel sidebar (`↑/↓` select, `enter` open, `←/→` switch server, `esc` back) |
 | `ctrl+k` | Quick switcher |
+| `alt+↑` / `alt+↓` | Previous / next channel |
+| `pgup` / `pgdn` | Scroll messages |
 | `?` | Show shortcuts |
-| `tab` | Autocomplete a command |
 | `↑` / `↓` | Input history (or move through autocomplete) |
 | `\` + `enter` | Newline |
-| `esc` | Cancel a picker or interrupt loading |
-| `ctrl+l` | Clear the screen |
+| `esc` | Cancel, interrupt loading, or jump back to the newest message |
+| `ctrl+l` | Clear the chat view |
 | `ctrl+u` / `ctrl+w` | Clear the line / delete a word |
 | `ctrl+c` ×2 | Exit |
 
@@ -125,7 +128,8 @@ src/
   discord.js      REST + Gateway client, permission checks
   demo.js         offline fake client for --demo
   format.js       Discord markdown → styled segments
-  ui/App.js       main screen: transcript, prompt, commands, pickers
+  ui/App.js       main screen: layout, chat, prompt, commands, keys
+  ui/layout.js    server rail, channel sidebar, member list, panels
   ui/Login.js     login flow
   ui/components.js banner, picker, prompt box, spinner, messages
   ui/theme.js     blurple palette, ASCII logo + mascot
