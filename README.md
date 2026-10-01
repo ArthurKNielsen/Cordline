@@ -2,7 +2,9 @@
 
 Discord in your terminal, styled after Claude Code but in Discord blurple instead of orange.
 
-![chat view](docs/screenshots/typing.png)
+![Discord Terminal demo](docs/demo.gif)
+
+*Navigating the demo: browsing channels, switching servers, ctrl+k search, DMs, commands. ([MP4 version](docs/demo.mp4))*
 
 ## Features
 
