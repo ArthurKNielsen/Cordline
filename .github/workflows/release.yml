@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: oven-sh/setup-bun@v2
+      - run: npm ci
+      - run: bun scripts/build.js
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          body: |
+            ## Download
+
+            | OS | File |
+            |---|---|
+            | Windows | `discord-terminal-windows-x64.exe` |
+            | macOS (Apple Silicon) | `discord-terminal-darwin-arm64` |
+            | macOS (Intel) | `discord-terminal-darwin-x64` |
+            | Linux | `discord-terminal-linux-x64` / `discord-terminal-linux-arm64` |
+
+            No Node.js needed. Just download and run it from a terminal.
+            Try `discord-terminal --demo` first to see it with fake data.

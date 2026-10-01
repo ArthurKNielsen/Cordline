@@ -5,7 +5,8 @@
   "main": "src/cli.js",
   "scripts": {
     "start": "node bin/discord-terminal.js",
-    "demo": "node bin/discord-terminal.js --demo"
+    "demo": "node bin/discord-terminal.js --demo",
+    "build": "bun scripts/build.js"
   },
   "repository": {
     "type": "git",
