@@ -139,4 +139,4 @@ bun scripts/build.js                 # all platforms → dist/
 bun scripts/build.js windows-x64     # just the Windows .exe
 ```
 
-Pushing a `v*` tag runs `.github/workflows/release.yml`, which builds every platform and publishes a GitHub Release.
+Pushing a `v*` tag (or running the workflow manually from the Actions tab) runs `.github/workflows/release.yml`, which builds every platform and publishes a GitHub Release.
