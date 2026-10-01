@@ -2,15 +2,19 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const dir = process.env.XDG_CONFIG_HOME ? path.join(process.env.XDG_CONFIG_HOME, 'discord-terminal') : path.join(os.homedir(), '.config', 'discord-terminal');
+const base = process.env.XDG_CONFIG_HOME ?? path.join(os.homedir(), '.config');
+const dir = path.join(base, 'cordline');
 export const configPath = path.join(dir, 'config.json');
+// Config location used before the app was renamed to Cordline.
+const legacyPath = path.join(base, 'discord-terminal', 'config.json');
 
 export function loadConfig() {
-	try {
-		return JSON.parse(fs.readFileSync(configPath, 'utf8'));
-	} catch {
-		return {};
+	for (const file of [configPath, legacyPath]) {
+		try {
+			return JSON.parse(fs.readFileSync(file, 'utf8'));
+		} catch {}
 	}
+	return {};
 }
 
 export function saveConfig(config) {

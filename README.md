@@ -1,15 +1,17 @@
-# Discord-Terminal
+# Cordline
 
-Discord in your terminal, styled after Claude Code but in Discord blurple instead of orange.
+**Discord, in your terminal.** A keyboard-first Discord client with a clean, full-screen terminal UI in Discord blurple.
 
-![Discord Terminal demo](docs/demo.gif)
+![Cordline demo](docs/demo.gif)
+
+▶ **[Watch the trailer](trailer/cordline-trailer.mp4)**
 
 *Navigating the demo: browsing channels, switching servers, ctrl+k search, DMs, commands. ([MP4 version](docs/demo.mp4))*
 
 ## Features
 
 - **Discord layout.** The full-screen view has a server rail, a channel sidebar with categories, the chat in the middle and a member list on the right. Unread badges appear on servers and channels, plus a "Welcome to #channel!" header at the start of each channel.
-- **Claude Code look.** Panels have rounded borders with titles set into the border, and the app uses the `>` prompt box, `/` command autocomplete, `●` message bullets, `❯` selection, the `✻` spinner with "esc to interrupt", and a `? for shortcuts` status line, all in Discord blurple. Your own messages are shown as highlighted `>` lines, the same way Claude Code shows what you typed.
+- **Clean terminal look.** Panels have rounded borders with titles set into the border, and the app has a `>` prompt box, `/` command autocomplete, `●` message bullets, `❯` selection, a `✻` spinner with "esc to interrupt", and a `? for shortcuts` status line, all in Discord blurple. Your own messages are shown as highlighted `>` lines.
 - **Your real Discord.** You can browse servers, channels, DMs and group DMs. Message history loads when you open a channel, and new messages arrive live over the Discord Gateway.
 - **Keyboard navigation.** `tab` moves to the sidebar, `←/→` switches servers, `alt+↑/↓` moves to the previous or next channel, `ctrl+k` opens a quick switcher, and `pgup/pgdn` scrolls.
 - **Live updates.** You get typing indicators ("Nova is typing..."), DM and mention notifications, and an unread counter.
@@ -30,26 +32,26 @@ Discord in your terminal, styled after Claude Code but in Discord blurple instea
 
 ### Option A: download the app (easiest, no Node.js needed)
 
-1. Go to the [**Releases page**](https://github.com/EnSpecielPerson/Discord-Terminal/releases/latest) and download the file for your OS:
-   - **Windows:** `discord-terminal-windows-x64.exe`
-   - **macOS:** `discord-terminal-darwin-arm64` (M1/M2/M3/M4) or `discord-terminal-darwin-x64` (Intel)
-   - **Linux:** `discord-terminal-linux-x64`
+1. Go to the [**Releases page**](https://github.com/EnSpecielPerson/Cordline/releases/latest) and download the file for your OS:
+   - **Windows:** `cordline-windows-x64.exe`
+   - **macOS:** `cordline-darwin-arm64` (M1/M2/M3/M4) or `cordline-darwin-x64` (Intel)
+   - **Linux:** `cordline-linux-x64`
 2. Run it **from a terminal**. Use Windows Terminal, PowerShell or cmd on Windows, and Terminal on macOS.
 
 **Windows** (in PowerShell, from your Downloads folder):
 ```powershell
 cd ~\Downloads
-.\discord-terminal-windows-x64.exe --demo   # try it with fake data
-.\discord-terminal-windows-x64.exe          # log in for real
+.\cordline-windows-x64.exe --demo   # try it with fake data
+.\cordline-windows-x64.exe          # log in for real
 ```
 Double-clicking the exe also works; it opens in a console window. If Windows SmartScreen warns you, click **More info → Run anyway**. The exe isn't code-signed, which is normal for small open-source apps.
 
 **macOS / Linux:**
 ```sh
 cd ~/Downloads
-chmod +x discord-terminal-*
-xattr -d com.apple.quarantine discord-terminal-darwin-*   # macOS only, removes the "unidentified developer" block
-./discord-terminal-darwin-arm64 --demo
+chmod +x cordline-*
+xattr -d com.apple.quarantine cordline-darwin-*   # macOS only, removes the "unidentified developer" block
+./cordline-darwin-arm64 --demo
 ```
 
 For the best look, use a modern terminal such as Windows Terminal, iTerm2, Ghostty or the default macOS Terminal.
@@ -59,18 +61,18 @@ For the best look, use a modern terminal such as Windows Terminal, iTerm2, Ghost
 Requires **Node.js 22+**.
 
 ```sh
-git clone https://github.com/enspecielperson/discord-terminal
-cd discord-terminal
+git clone https://github.com/EnSpecielPerson/Cordline
+cd Cordline
 npm install
-npm link            # optional: puts `discord-terminal` on your PATH
+npm link            # optional: puts `cordline` on your PATH
 
-discord-terminal --demo   # try it with fake data first
-discord-terminal          # log in for real
+cordline --demo   # try it with fake data first
+cordline          # log in for real
 ```
 
 ## Logging in
 
-On first launch you choose a login method and paste a token. The token is saved to `~/.config/discord-terminal/config.json` (file mode `600`). Run `/logout` or `discord-terminal --logout` to remove it.
+On first launch you choose a login method and paste a token. The token is saved to `~/.config/cordline/config.json` (file mode `600`). Run `/logout` or `cordline --logout` to remove it.
 
 ### Option 1: Discord account (user token)
 
@@ -89,7 +91,7 @@ To get your token: open Discord in a browser, open DevTools (`F12`), go to the *
 
 A bot only sees the servers it has been added to.
 
-You can also pass a token directly: `DISCORD_TOKEN=... discord-terminal`, or `discord-terminal --token <token> [--bot]`.
+You can also pass a token directly: `DISCORD_TOKEN=... cordline`, or `cordline --token <token> [--bot]`.
 
 ## Commands and shortcuts
 
@@ -122,7 +124,7 @@ You can also pass a token directly: `DISCORD_TOKEN=... discord-terminal`, or `di
 
 ## How it works
 
-The app is built with [Ink](https://github.com/vadimdemedes/ink), the React-for-terminals renderer that Claude Code also uses. It has no Discord library dependency. It talks to Discord's REST API (`/api/v10`) and Gateway websocket directly. That keeps it small and lets the same code handle both bot and user tokens.
+The app is built with [Ink](https://github.com/vadimdemedes/ink), a React renderer for terminal apps. It has no Discord library dependency. It talks to Discord's REST API (`/api/v10`) and Gateway websocket directly. That keeps it small and lets the same code handle both bot and user tokens.
 
 ```
 src/

@@ -28,7 +28,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
-          name: Discord Terminal ${{ steps.tag.outputs.tag }}
+          name: Cordline ${{ steps.tag.outputs.tag }}
           target_commitish: ${{ github.sha }}
           files: dist/*
           generate_release_notes: true
@@ -37,10 +37,10 @@ jobs:
 
             | OS | File |
             |---|---|
-            | Windows | `discord-terminal-windows-x64.exe` |
-            | macOS (Apple Silicon) | `discord-terminal-darwin-arm64` |
-            | macOS (Intel) | `discord-terminal-darwin-x64` |
-            | Linux | `discord-terminal-linux-x64` / `discord-terminal-linux-arm64` |
+            | Windows | `cordline-windows-x64.exe` |
+            | macOS (Apple Silicon) | `cordline-darwin-arm64` |
+            | macOS (Intel) | `cordline-darwin-x64` |
+            | Linux | `cordline-linux-x64` / `cordline-linux-arm64` |
 
             No Node.js needed. Just download and run it from a terminal.
-            Try `discord-terminal --demo` first to see it with fake data.
+            Try `cordline --demo` first to see it with fake data.

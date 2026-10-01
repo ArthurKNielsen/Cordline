@@ -1,6 +1,6 @@
-// Discord-style panes (server rail, channel sidebar, member list) drawn with
-// Claude Code's visual language: rounded panels, titles set into the border,
-// ❯ selection markers and dim secondary text.
+// Discord-style panes (server rail, channel sidebar, member list) drawn as
+// rounded panels with titles set into the border, ❯ selection markers and
+// dim secondary text.
 import React from 'react';
 import {Box, Text} from 'ink';
 import stringWidth from 'string-width';

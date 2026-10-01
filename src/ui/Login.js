@@ -67,7 +67,7 @@ export function Login({onDone, initialError}) {
 		h(
 			Box,
 			{flexDirection: 'column', marginTop: 1, paddingX: 1},
-			h(Text, {bold: true}, 'Welcome to ', h(Text, {color: theme.brandLight}, 'Discord Terminal')),
+			h(Text, {bold: true}, 'Welcome to ', h(Text, {color: theme.brandLight}, 'Cordline')),
 			h(Text, {color: theme.subtle}, 'Discord, but it lives in your terminal.'),
 		),
 		step === 'method'
@@ -104,7 +104,7 @@ export function Login({onDone, initialError}) {
 					error ? h(Text, {color: theme.red}, `  ⎿  ${error}`) : null,
 					step === 'validating'
 						? h(Spinner, {label: 'Connecting to Discord…', startedAt})
-						: h(Text, {color: theme.dim}, '  enter to log in · esc to go back · token is saved to ~/.config/discord-terminal'),
+						: h(Text, {color: theme.dim}, '  enter to log in · esc to go back · token is saved to ~/.config/cordline'),
 				),
 	);
 }

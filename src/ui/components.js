@@ -4,25 +4,25 @@ import {theme, LOGO, LOGO_COLORS, MASCOT, SPINNER, nameColor} from './theme.js';
 import {parseContent, displayName, formatTime, formatBytes, preview} from '../format.js';
 
 const h = React.createElement;
-export const VERSION = '1.1.0';
+export const VERSION = '2.0.0';
 
 // ---------- Logo + welcome banner ----------
 
 export function Logo({columns}) {
 	if (columns < LOGO[0].length + 4) {
-		return h(Box, {paddingLeft: 1}, h(Text, {color: theme.brand, bold: true}, '◆ D I S C O R D'));
+		return h(Box, {paddingLeft: 1}, h(Text, {color: theme.brand, bold: true}, '◆ C O R D L I N E'));
 	}
 	return h(
 		Box,
 		{flexDirection: 'column', paddingLeft: 1},
 		...LOGO.map((line, i) => h(Text, {key: i, color: LOGO_COLORS[i]}, line)),
-		h(Text, {color: theme.subtle}, '  ', h(Text, {color: theme.brandLight}, '▸'), ' terminal edition · ', h(Text, {color: theme.dim}, `v${VERSION}`)),
+		h(Text, {color: theme.subtle}, '  ', h(Text, {color: theme.brandLight}, '▸'), ' Discord, in your terminal · ', h(Text, {color: theme.dim}, `v${VERSION}`)),
 	);
 }
 
 export function Banner({columns, user, guildCount, dms, demo}) {
 	const width = Math.min(Math.max(columns - 1, 40), 110);
-	const title = ` Discord Terminal v${VERSION} `;
+	const title = ` Cordline v${VERSION} `;
 	const top = `╭───${title}${'─'.repeat(Math.max(width - title.length - 5, 0))}╮`;
 	const name = user?.global_name ?? user?.username ?? 'friend';
 	const wide = width >= 70;
@@ -277,7 +277,7 @@ export function MessageView({msg, client, compact}) {
 	const replyLine = ref ? h(Text, {color: theme.dim}, '  ╭─ ', h(Text, {color: nameColor(ref.author?.id), dimColor: true}, `@${displayName(ref.author, ref.member)}`), ` ${preview(ref)}`) : null;
 
 	if (mine) {
-		// Your own messages render like a Claude Code user prompt.
+		// Your own messages render as a highlighted prompt line.
 		return h(
 			Box,
 			{flexDirection: 'column', marginTop: compact ? 0 : 1},

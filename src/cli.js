@@ -8,12 +8,12 @@ import {loadConfig, saveConfig, clearToken, configPath} from './config.js';
 
 const h = React.createElement;
 
-const HELP = `discord-terminal — Discord, but in your terminal
+const HELP = `cordline — Discord, in your terminal
 
 Usage
-  discord-terminal              log in (or reuse the saved token)
-  discord-terminal --demo       try it with fake servers, no account needed
-  discord-terminal --logout     forget the saved token
+  cordline              log in (or reuse the saved token)
+  cordline --demo       try it with fake servers, no account needed
+  cordline --logout     forget the saved token
 
 Options
   --token <token>     use this token (also: DISCORD_TOKEN env var)
@@ -47,7 +47,7 @@ export async function main(argv) {
 		return;
 	}
 	if (!process.stdin.isTTY) {
-		console.error('discord-terminal needs an interactive terminal (TTY).');
+		console.error('cordline needs an interactive terminal (TTY).');
 		process.exit(1);
 	}
 

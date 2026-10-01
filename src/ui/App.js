@@ -18,7 +18,7 @@ export const COMMANDS = [
 	{name: 'whoami', desc: 'Show the account you are logged in as'},
 	{name: 'help', desc: 'Show help and keyboard shortcuts'},
 	{name: 'logout', desc: 'Forget the saved token and exit'},
-	{name: 'exit', desc: 'Exit Discord Terminal'},
+	{name: 'exit', desc: 'Exit Cordline'},
 ];
 
 const SHORTCUTS = [
@@ -582,7 +582,7 @@ export function App({client, demo, onLogout}) {
 				)
 			: null;
 
-	const mainTitle = ch ? channelLabel(ch) : 'Discord Terminal';
+	const mainTitle = ch ? channelLabel(ch) : 'Cordline';
 	const mainRight = ch?.topic ?? (ch && !ch.guild_id ? (ch.type === ChannelType.GROUP_DM ? 'Group DM' : 'Direct message') : guild?.name);
 	const placeholder = ch ? `Message ${channelLabel(ch)}` : 'Press tab to browse channels, or ctrl+k to jump anywhere';
 

@@ -1,16 +1,16 @@
 {
-  "name": "discord-terminal",
-  "version": "1.1.0",
-  "description": "Discord, but in your terminal — styled like Claude Code",
+  "name": "cordline",
+  "version": "2.0.0",
+  "description": "Discord, in your terminal.",
   "main": "src/cli.js",
   "scripts": {
-    "start": "node bin/discord-terminal.js",
-    "demo": "node bin/discord-terminal.js --demo",
+    "start": "node bin/cordline.js",
+    "demo": "node bin/cordline.js --demo",
     "build": "bun scripts/build.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/EnSpecielPerson/Discord-Terminal.git"
+    "url": "git+https://github.com/EnSpecielPerson/Cordline.git"
   },
   "keywords": [
     "discord",
@@ -22,9 +22,9 @@
   "author": "",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/EnSpecielPerson/Discord-Terminal/issues"
+    "url": "https://github.com/EnSpecielPerson/Cordline/issues"
   },
-  "homepage": "https://github.com/EnSpecielPerson/Discord-Terminal#readme",
+  "homepage": "https://github.com/EnSpecielPerson/Cordline#readme",
   "dependencies": {
     "ink": "^7.1.1",
     "react": "^19.3.0",
@@ -33,7 +33,7 @@
   },
   "type": "module",
   "bin": {
-    "discord-terminal": "bin/discord-terminal.js"
+    "cordline": "bin/cordline.js"
   },
   "engines": {
     "node": ">=22"

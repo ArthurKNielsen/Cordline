@@ -74,7 +74,7 @@ export class DiscordClient extends EventEmitter {
 					Authorization: this.token,
 					'Content-Type': 'application/json',
 					'User-Agent': this.isBot
-						? 'DiscordBot (https://github.com/enspecielperson/discord-terminal, 1.1.0)'
+						? 'DiscordBot (https://github.com/EnSpecielPerson/Cordline, 2.0.0)'
 						: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36',
 				},
 				body: body === undefined ? undefined : JSON.stringify(body),
@@ -190,7 +190,7 @@ export class DiscordClient extends EventEmitter {
 	identify() {
 		const payload = {
 			token: this.token,
-			properties: this.isBot ? {os: process.platform, browser: 'discord-terminal', device: 'discord-terminal'} : {os: 'Linux', browser: 'Chrome', device: '', system_locale: 'en-US'},
+			properties: this.isBot ? {os: process.platform, browser: 'cordline', device: 'cordline'} : {os: 'Linux', browser: 'Chrome', device: '', system_locale: 'en-US'},
 		};
 		if (this.isBot) payload.intents = BOT_INTENTS;
 		this.send(2, payload);

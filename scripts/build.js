@@ -16,9 +16,9 @@ const stubDevtools = {
 
 mkdirSync('dist', {recursive: true});
 for (const target of targets) {
-	const outfile = `dist/discord-terminal-${target}${target.startsWith('windows') ? '.exe' : ''}`;
+	const outfile = `dist/cordline-${target}${target.startsWith('windows') ? '.exe' : ''}`;
 	const result = await Bun.build({
-		entrypoints: ['bin/discord-terminal.js'],
+		entrypoints: ['bin/cordline.js'],
 		compile: {target: `bun-${target}`, outfile},
 		minify: true,
 		plugins: [stubDevtools],
