@@ -6,6 +6,7 @@ import {Box, Text} from 'ink';
 import stringWidth from 'string-width';
 import {theme, nameColor} from './theme.js';
 import {ChannelType} from '../discord.js';
+import {Clickable} from './mouse.js';
 
 const h = React.createElement;
 
@@ -56,20 +57,18 @@ export function Panel({title, titleColor, width, height, focused, children, righ
 
 // ---------- Server rail ----------
 
-export function ServerRail({client, selected, unreadByGuild, height}) {
+export function ServerRail({client, selected, unreadByGuild, height, onSelect}) {
 	const rows = [];
 	const chip = (id, label, {home} = {}) => {
 		const active = id === selected;
 		const unread = unreadByGuild[id] ?? 0;
 		rows.push(
-			h(
-				Box,
-				{key: id, marginBottom: 1},
-				h(Text, {color: '#FFFFFF'}, active ? '▌' : unread ? '•' : ' '),
-				h(Text, null, ' '),
-				h(Text, {backgroundColor: active || home ? theme.brand : '#313338', color: active || home ? '#FFFFFF' : theme.text, bold: active}, ` ${label} `),
-				h(Text, {color: theme.red, bold: true}, unread ? '●' : ' '),
-			),
+			h(Clickable, {key: id, marginBottom: 1, onClick: () => onSelect?.(id)}, hovered => [
+				h(Text, {key: 'p', color: '#FFFFFF'}, active ? '▌' : hovered || unread ? '•' : ' '),
+				h(Text, {key: 's'}, ' '),
+				h(Text, {key: 'c', backgroundColor: active || home || hovered ? theme.brand : '#313338', color: active || home || hovered ? '#FFFFFF' : theme.text, bold: active || hovered}, ` ${label} `),
+				h(Text, {key: 'u', color: theme.red, bold: true}, unread ? '●' : ' '),
+			]),
 		);
 	};
 	chip(HOME, 'DM', {home: true});
@@ -105,7 +104,7 @@ export function sidebarEntries(client, guildId) {
 	});
 }
 
-export function Sidebar({client, guildId, entries, current, cursor, focused, unread, width, height, demo}) {
+export function Sidebar({client, guildId, entries, current, cursor, focused, unread, width, height, demo, onOpen, onWheel}) {
 	const inner = width - 2;
 	const title = guildId === HOME ? 'Direct Messages' : (client.guilds.get(guildId)?.name ?? '');
 	const lines = [];
@@ -124,18 +123,16 @@ export function Sidebar({client, guildId, entries, current, cursor, focused, unr
 		const labelWidth = inner - 5 - stringWidth(badge);
 		const color = !e.selectable ? theme.dim : isCurrent ? '#FFFFFF' : count ? '#FFFFFF' : (e.color ?? theme.subtle);
 		lines.push(
-			h(
-				Box,
-				{key: e.id, width: inner},
+			h(Clickable, {key: e.id, width: inner, disabled: !e.selectable, onClick: () => onOpen?.(e.id, i)}, hovered => [
 				h(
 					Text,
-					{backgroundColor: isCurrent ? '#404249' : undefined, wrap: 'truncate-end'},
+					{key: 't', backgroundColor: isCurrent ? '#404249' : hovered ? theme.hoverBg : undefined, wrap: 'truncate-end'},
 					h(Text, {color: theme.brandLight, bold: true}, isCursor ? '❯' : ' '),
-					h(Text, {color: isCurrent ? theme.brandLight : theme.dim}, ` ${e.icon} `),
-					h(Text, {color, bold: isCurrent || Boolean(count)}, truncate(e.label, labelWidth).padEnd(Math.max(labelWidth, 0))),
+					h(Text, {color: isCurrent || hovered ? theme.brandLight : theme.dim}, ` ${e.icon} `),
+					h(Text, {color: hovered ? '#FFFFFF' : color, bold: isCurrent || Boolean(count)}, truncate(e.label, labelWidth).padEnd(Math.max(labelWidth, 0))),
 				),
-				badge ? h(Text, {backgroundColor: theme.red, color: '#FFFFFF', bold: true}, badge) : null,
-			),
+				badge ? h(Text, {key: 'b', backgroundColor: theme.red, color: '#FFFFFF', bold: true}, badge) : null,
+			]),
 		);
 	});
 
@@ -148,7 +145,7 @@ export function Sidebar({client, guildId, entries, current, cursor, focused, unr
 	return h(
 		Panel,
 		{title: truncate(title, inner - 4), width, height, focused},
-		h(Box, {flexDirection: 'column', flexGrow: 1, paddingTop: 1}, visible.length ? visible : h(Text, {color: theme.dim}, '  Nothing here yet')),
+		h(Clickable, {flexDirection: 'column', flexGrow: 1, paddingTop: 1, onWheel}, visible.length ? visible : h(Text, {color: theme.dim}, '  Nothing here yet')),
 		h(Text, {color: theme.border}, '─'.repeat(inner)),
 		h(
 			Box,
@@ -161,7 +158,7 @@ export function Sidebar({client, guildId, entries, current, cursor, focused, unr
 
 // ---------- Member list ----------
 
-export function MemberList({client, channel, authors, width, height}) {
+export function MemberList({client, channel, authors, width, height, onOpenDM}) {
 	const inner = width - 4;
 	if (channel && !channel.guild_id) {
 		const people = channel.recipients ?? [];
@@ -185,14 +182,18 @@ export function MemberList({client, channel, authors, width, height}) {
 	}
 	const bots = authors.filter(u => u.bot);
 	const people = authors.filter(u => !u.bot);
-	const row = u =>
-		h(
-			Text,
-			{key: u.id, wrap: 'truncate-end'},
-			h(Text, {color: nameColor(u.id)}, '● '),
-			h(Text, {color: theme.text}, truncate(u.global_name ?? u.username, inner - (u.bot ? 6 : 2))),
-			u.bot ? h(Text, {backgroundColor: theme.brand, color: '#FFFFFF', bold: true}, ' BOT') : null,
+	const row = u => {
+		const dm = [...client.dms.values()].find(d => d.type === ChannelType.DM && d.recipients?.[0]?.id === u.id);
+		return h(Clickable, {key: u.id, disabled: !dm, onClick: () => dm && onOpenDM?.(dm.id)}, hovered =>
+			h(
+				Text,
+				{wrap: 'truncate-end', backgroundColor: hovered ? theme.hoverBg : undefined},
+				h(Text, {color: nameColor(u.id)}, '● '),
+				h(Text, {color: hovered ? '#FFFFFF' : theme.text, bold: hovered}, truncate(u.global_name ?? u.username, inner - (u.bot ? 6 : 2))),
+				u.bot ? h(Text, {backgroundColor: theme.brand, color: '#FFFFFF', bold: true}, ' BOT') : null,
+			),
 		);
+	};
 	return h(
 		Panel,
 		{title: `In chat — ${authors.length}`, width, height},

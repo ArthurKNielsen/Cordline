@@ -3,6 +3,7 @@ import {Box, Text, useApp, useInput, usePaste, useWindowSize} from 'ink';
 import {theme} from './theme.js';
 import {Logo, PromptInput, Spinner} from './components.js';
 import {DiscordClient, normalizeToken} from '../discord.js';
+import {Clickable} from './mouse.js';
 
 const h = React.createElement;
 
@@ -78,13 +79,29 @@ export function Login({onDone, initialError}) {
 					h(Text, null, ' '),
 					...METHODS.map((m, i) =>
 						h(
-							Box,
-							{key: m.kind, flexDirection: 'column', marginBottom: 1},
-							h(Text, {color: i === sel ? theme.brandLight : theme.text}, i === sel ? '❯ ' : '  ', `${i + 1}. `, h(Text, {bold: i === sel}, m.label)),
-							h(Text, {color: theme.dim}, `     ${m.hint}`),
+							Clickable,
+							{
+								key: m.kind,
+								flexDirection: 'column',
+								marginBottom: 1,
+								onClick: () => {
+									setSel(i);
+									setStep('token');
+								},
+							},
+							hovered => [
+								h(
+									Text,
+									{key: 'l', color: i === sel || hovered ? theme.brandLight : theme.text, backgroundColor: hovered ? theme.hoverBg : undefined},
+									i === sel ? '❯ ' : '  ',
+									`${i + 1}. `,
+									h(Text, {bold: i === sel || hovered}, m.label),
+								),
+								h(Text, {key: 'h', color: theme.dim}, `     ${m.hint}`),
+							],
 						),
 					),
-					h(Text, {color: theme.dim}, '↑/↓ to select · enter to continue · ctrl+c to quit'),
+					h(Text, {color: theme.dim}, 'click or ↑/↓ to select · enter to continue · ctrl+c to quit'),
 				)
 			: h(
 					Box,
@@ -104,7 +121,29 @@ export function Login({onDone, initialError}) {
 					error ? h(Text, {color: theme.red}, `  ⎿  ${error}`) : null,
 					step === 'validating'
 						? h(Spinner, {label: 'Connecting to Discord…', startedAt})
-						: h(Text, {color: theme.dim}, '  enter to log in · esc to go back · token is saved to ~/.config/cordline'),
+						: h(
+								Box,
+								{flexDirection: 'column'},
+								h(
+									Box,
+									{marginTop: 1, marginLeft: 2},
+									h(Clickable, {marginRight: 2, onClick: () => token.trim() && tryLogin()}, hovered =>
+										h(Text, {backgroundColor: hovered ? theme.brandLight : theme.brand, color: '#FFFFFF', bold: true}, '  Log in  '),
+									),
+									h(
+										Clickable,
+										{
+											onClick: () => {
+												setToken('');
+												setError(null);
+												setStep('method');
+											},
+										},
+										hovered => h(Text, {backgroundColor: hovered ? theme.hoverBg : '#2B2D31', color: theme.text}, '  Back  '),
+									),
+								),
+								h(Text, {color: theme.dim}, '  enter to log in · esc to go back · token is saved to ~/.config/cordline'),
+							),
 				),
 	);
 }

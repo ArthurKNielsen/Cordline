@@ -13,6 +13,7 @@
 - **Discord layout.** The full-screen view has a server rail, a channel sidebar with categories, the chat in the middle and a member list on the right. Unread badges appear on servers and channels, plus a "Welcome to #channel!" header at the start of each channel.
 - **Clean terminal look.** Panels have rounded borders with titles set into the border, and the app has a `>` prompt box, `/` command autocomplete, `●` message bullets, `❯` selection, a `✻` spinner with "esc to interrupt", and a `? for shortcuts` status line, all in Discord blurple. Your own messages are shown as highlighted `>` lines.
 - **Your real Discord.** You can browse servers, channels, DMs and group DMs. Message history loads when you open a channel, and new messages arrive live over the Discord Gateway.
+- **Mouse support.** Click servers, channels, DMs, people, buttons and menu items, use the scroll wheel to scroll chat, and click anywhere outside a popup to close it. Everything you hover over lights up. Hold `shift` while dragging to select text the usual way, or start with `--no-mouse` to turn mouse support off.
 - **Keyboard navigation.** `tab` moves to the sidebar, `←/→` switches servers, `alt+↑/↓` moves to the previous or next channel, `ctrl+k` opens a quick switcher, and `pgup/pgdn` scrolls.
 - **Live updates.** You get typing indicators ("Nova is typing..."), DM and mention notifications, and an unread counter.
 - **Discord markdown** rendering: **bold**, *italics*, `code`, code blocks, quotes, spoilers, mentions, channel links, custom emoji, timestamps, attachments and embeds.
@@ -26,7 +27,7 @@
 | ![chat](docs/screenshots/chat.png) | ![quick switcher](docs/screenshots/switcher.png) |
 | ![code blocks](docs/screenshots/code.png) | ![DMs](docs/screenshots/dm.png) |
 | ![commands](docs/screenshots/commands.png) | ![shortcuts](docs/screenshots/shortcuts.png) |
-| ![login](docs/screenshots/login.png) | |
+| ![login](docs/screenshots/login.png) | ![mouse hover](docs/screenshots/mouse.png) |
 
 ## Install
 
@@ -121,6 +122,8 @@ You can also pass a token directly: `DISCORD_TOKEN=... cordline`, or `cordline -
 | `ctrl+l` | Clear the chat view |
 | `ctrl+u` / `ctrl+w` | Clear the line / delete a word |
 | `ctrl+c` ×2 | Exit |
+
+**Mouse:** click anything in the sidebar, server list, member list, popups or the bottom bar (⌕ Jump, # Servers, @ DMs, ? Help). Scroll the wheel over the chat to read older messages, or over the sidebar to move through channels. Click the message box to put your cursor there.
 
 ## How it works
 

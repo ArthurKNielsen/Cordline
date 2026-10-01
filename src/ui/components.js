@@ -1,10 +1,11 @@
 import React, {useEffect, useState} from 'react';
 import {Box, Text, useInput} from 'ink';
 import {theme, LOGO, LOGO_COLORS, MASCOT, SPINNER, nameColor} from './theme.js';
+import {Clickable} from './mouse.js';
 import {parseContent, displayName, formatTime, formatBytes, preview} from '../format.js';
 
 const h = React.createElement;
-export const VERSION = '2.0.0';
+export const VERSION = '2.1.0';
 
 // ---------- Logo + welcome banner ----------
 
@@ -155,26 +156,40 @@ export function Picker({title, subtitle, items, onSelect, onCancel, rows, initia
 		}
 		const active = n === sel;
 		lines.push(
-			h(
-				Box,
-				{key: it.key ?? n},
+			h(Clickable, {key: it.key ?? n, layer: 1, disabled: it.disabled, onClick: () => onSelect(it)}, hovered =>
 				h(
-					Text,
-					{color: active ? theme.brandLight : theme.text, dimColor: it.disabled},
-					active ? '❯ ' : '  ',
-					h(Text, {color: theme.dim}, `${n + 1}. `),
-					it.icon ? `${it.icon} ` : '',
-					h(Text, {bold: active}, it.label),
+					Box,
+					{backgroundColor: hovered ? theme.hoverBg : undefined, flexGrow: 1},
+					h(
+						Text,
+						{color: active || hovered ? theme.brandLight : theme.text, dimColor: it.disabled},
+						active ? '❯ ' : '  ',
+						h(Text, {color: theme.dim}, `${n + 1}. `),
+						it.icon ? `${it.icon} ` : '',
+						h(Text, {bold: active || hovered}, it.label),
+					),
+					it.hint ? h(Text, {color: theme.dim}, `  ${it.hint}`) : null,
+					it.badge ? h(Text, {color: theme.red, bold: true}, `  ● ${it.badge}`) : null,
 				),
-				it.hint ? h(Text, {color: theme.dim}, `  ${it.hint}`) : null,
-				it.badge ? h(Text, {color: theme.red, bold: true}, `  ● ${it.badge}`) : null,
 			),
 		);
 	});
 
 	return h(
-		Box,
-		{flexDirection: 'column', borderStyle: 'round', borderColor: theme.brand, paddingX: 1, width, backgroundColor},
+		Clickable,
+		{
+			layer: 1,
+			hoverable: false,
+			onClick: () => {},
+			onOutside: onCancel,
+			onWheel: d => setIndex(Math.min(Math.max(sel + d, 0), Math.max(filtered.length - 1, 0))),
+			flexDirection: 'column',
+			borderStyle: 'round',
+			borderColor: theme.brand,
+			paddingX: 1,
+			width,
+			backgroundColor,
+		},
 		h(Text, {color: theme.brandLight, bold: true}, title),
 		subtitle ? h(Text, {color: theme.subtle}, subtitle) : null,
 		h(Text, null, ' '),
@@ -184,7 +199,7 @@ export function Picker({title, subtitle, items, onSelect, onCancel, rows, initia
 			Text,
 			{color: theme.dim},
 			filter ? h(Text, null, 'Filter: ', h(Text, {color: theme.text}, filter), '  ·  ') : 'Type to filter · ',
-			'↑/↓ navigate · enter select · esc cancel',
+			'↑/↓ or click · enter select · esc cancel',
 			filtered.length > maxVisible ? `  (${sel + 1}/${filtered.length})` : '',
 		),
 	);

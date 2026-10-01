@@ -5,6 +5,7 @@ import {Login} from './ui/Login.js';
 import {DiscordClient} from './discord.js';
 import {DemoClient} from './demo.js';
 import {loadConfig, saveConfig, clearToken, configPath} from './config.js';
+import {MouseProvider, createMouseStdin} from './ui/mouse.js';
 
 const h = React.createElement;
 
@@ -18,6 +19,7 @@ Usage
 Options
   --token <token>     use this token (also: DISCORD_TOKEN env var)
   --bot               treat the token as a bot token
+  --no-mouse          disable mouse support (keeps normal text selection)
   -h, --help          show this help
 
 Config is stored at ${configPath}`;
@@ -73,8 +75,15 @@ export async function main(argv) {
 		}
 	}
 
-	const instance = render(h(Root, {initialClient: client, demo}), {exitOnCtrlC: false, alternateScreen: true, incrementalRendering: true});
+	const mouse = args.includes('--no-mouse') ? null : createMouseStdin();
+	const instance = render(h(MouseProvider, {mouse: mouse?.mouse}, h(Root, {initialClient: client, demo})), {
+		exitOnCtrlC: false,
+		alternateScreen: true,
+		incrementalRendering: true,
+		...(mouse ? {stdin: mouse.stdin} : {}),
+	});
 	await instance.waitUntilExit();
+	mouse?.disable();
 	process.stdout.write('\x1b]0;\x07');
 	process.exit(0);
 }

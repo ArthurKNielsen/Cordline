@@ -3,6 +3,7 @@ import {Box, Text, useApp, useInput, usePaste, useStdout, useWindowSize} from 'i
 import {theme} from './theme.js';
 import {Banner, MessageView, Picker, PromptInput, Spinner, SystemLine, TypingLine} from './components.js';
 import {HOME, MemberList, Panel, ServerRail, Sidebar, sidebarEntries} from './layout.js';
+import {Clickable} from './mouse.js';
 import {ChannelType, isTextChannel} from '../discord.js';
 import {displayName, preview} from '../format.js';
 
@@ -573,10 +574,24 @@ export function App({client, demo, onLogout}) {
 					{flexDirection: 'column', paddingX: 1},
 					...acMatches.map((c, i) =>
 						h(
-							Box,
-							{key: c.name},
-							h(Box, {width: 20, flexShrink: 0}, h(Text, {color: i === acSel ? theme.brandLight : theme.subtle, bold: i === acSel}, `/${c.name}${c.args ? ` ${c.args}` : ''}`)),
-							h(Text, {color: i === acSel ? theme.brandLight : theme.dim, wrap: 'truncate-end'}, c.desc),
+							Clickable,
+							{
+								key: c.name,
+								onClick: () => {
+									setValue('');
+									setCursor(0);
+									runCommand(`/${c.name}`);
+								},
+							},
+							hovered => {
+								const on = i === acSel || hovered;
+								return h(
+									Box,
+									{backgroundColor: hovered ? theme.hoverBg : undefined, flexGrow: 1},
+									h(Box, {width: 20, flexShrink: 0}, h(Text, {color: on ? theme.brandLight : theme.subtle, bold: on}, `/${c.name}${c.args ? ` ${c.args}` : ''}`)),
+									h(Text, {color: on ? theme.brandLight : theme.dim, wrap: 'truncate-end'}, c.desc),
+								);
+							},
 						),
 					),
 				)
@@ -597,8 +612,18 @@ export function App({client, demo, onLogout}) {
 			focused: focus === 'input',
 		},
 		h(
-			Box,
-			{flexDirection: 'column', flexGrow: 1, flexShrink: 1, justifyContent: 'flex-end', overflow: 'hidden', paddingX: 1},
+			Clickable,
+			{
+				flexDirection: 'column',
+				flexGrow: 1,
+				flexShrink: 1,
+				justifyContent: 'flex-end',
+				overflow: 'hidden',
+				paddingX: 1,
+				hoverable: false,
+				onClick: () => setFocus('input'),
+				onWheel: d => setScroll(sc => Math.min(Math.max(sc - d * 2, 0), Math.max(list.length - 1, 0))),
+			},
 			!ch && !list.length ? welcome : shown.map((e, i) => h(Box, {key: e.id, flexShrink: 0, flexDirection: 'column'}, renderEntry(e, i))),
 		),
 		h(
@@ -608,26 +633,52 @@ export function App({client, demo, onLogout}) {
 			hiddenBelow ? h(Text, {color: theme.yellow}, `↓ ${hiddenBelow} newer message${hiddenBelow === 1 ? '' : 's'} · pgdn or esc to jump back`) : null,
 			notice && notice.color !== theme.subtle ? h(Box, {marginTop: 1}, h(Text, {color: notice.color, wrap: 'truncate-end'}, notice.text)) : null,
 			h(Box, {height: 1}, Object.keys(typers).length ? h(TypingLine, {typers}) : null),
-			h(PromptInput, {value, cursor, placeholder, columns: mainInner - 1}),
+			h(
+				Clickable,
+				{
+					hoverable: false,
+					onClick: ({x, rect}) => {
+						setFocus('input');
+						if (!value.includes('\n')) setCursor(Math.min(Math.max(x - rect.x - 4, 0), value.length));
+					},
+				},
+				h(PromptInput, {value, cursor, placeholder, columns: mainInner - 1}),
+			),
 		),
 		footer,
 	);
 
 	const where = ch ? `${guild ? guild.name : 'DMs'} › ${channelLabel(ch)}` : status === 'connected' ? (demo ? 'demo mode' : 'connected') : 'reconnecting…';
+	const button = (key, label, onClick, active) =>
+		h(Clickable, {key, marginRight: 1, onClick}, hovered =>
+			h(Text, {backgroundColor: hovered || active ? theme.brand : '#2B2D31', color: hovered || active ? '#FFFFFF' : theme.subtle, bold: hovered || active}, ` ${label} `),
+		);
 	const statusBar = h(
 		Box,
 		{paddingX: 1, justifyContent: 'space-between', width: columns, height: 1},
 		h(
-			Text,
-			{color: theme.dim, wrap: 'truncate-end'},
-			notice?.color === theme.subtle ? notice.text : focus === 'nav' ? '↑/↓ select · enter open · ←/→ switch server · esc back to chat' : '? for shortcuts · tab browse channels · ctrl+k jump',
+			Box,
+			{flexShrink: 1},
+			button('jump', '⌕ Jump', () => openSwitcher()),
+			button('servers', '# Servers', openServerPicker),
+			button('dms', '@ DMs', () => {
+				selectGuild(HOME);
+				setFocus('nav');
+			}),
+			button('help', '? Help', () => setShowHelp(x => !x), showHelp),
+			h(
+				Text,
+				{color: theme.dim, wrap: 'truncate-end'},
+				notice?.color === theme.subtle ? ` ${notice.text}` : focus === 'nav' ? ' ↑/↓ select · enter open · ←/→ server · esc chat' : ' tab browse · ctrl+k jump',
+			),
 		),
 		h(
-			Text,
-			{wrap: 'truncate-start'},
-			totalUnread ? h(Text, {color: theme.red}, `● ${totalUnread} unread   `) : null,
+			Box,
+			{flexShrink: 0},
+			totalUnread ? h(Clickable, {onClick: () => openSwitcher()}, hovered => h(Text, {color: theme.red, bold: hovered, underline: hovered}, `● ${totalUnread} unread`)) : null,
+			h(Text, null, '   '),
 			h(Text, {color: status === 'connected' ? theme.green : theme.yellow}, '● '),
-			h(Text, {color: theme.subtle}, where),
+			h(Text, {color: theme.subtle, wrap: 'truncate-start'}, where),
 		),
 	);
 
@@ -638,10 +689,45 @@ export function App({client, demo, onLogout}) {
 		h(
 			Box,
 			{height},
-			railW ? h(ServerRail, {client, selected: guildId, unreadByGuild, height}) : null,
-			sideW ? h(Sidebar, {client, guildId, entries, current, cursor: navCursor, focused: focus === 'nav', unread, width: sideW, height, demo}) : null,
+			railW
+				? h(ServerRail, {
+						client,
+						selected: guildId,
+						unreadByGuild,
+						height,
+						onSelect: id => {
+							selectGuild(id);
+							setFocus('nav');
+						},
+					})
+				: null,
+			sideW
+				? h(Sidebar, {
+						client,
+						guildId,
+						entries,
+						current,
+						cursor: navCursor,
+						focused: focus === 'nav',
+						unread,
+						width: sideW,
+						height,
+						demo,
+						onOpen: (id, i) => {
+							setNavCursor(i);
+							openChannel(id);
+						},
+						onWheel: d => {
+							setFocus('nav');
+							setNavCursor(c => {
+								for (let i = c + d; i >= 0 && i < entries.length; i += d) if (entries[i].selectable) return i;
+								return c;
+							});
+						},
+					})
+				: null,
 			main,
-			membersW ? h(MemberList, {client, channel: ch, authors, width: membersW, height}) : null,
+			membersW ? h(MemberList, {client, channel: ch, authors, width: membersW, height, onOpenDM: id => openChannel(id)}) : null,
 		),
 		statusBar,
 		overlay
