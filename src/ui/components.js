@@ -3,9 +3,10 @@ import {Box, Text, useInput} from 'ink';
 import {theme, LOGO, LOGO_COLORS, MASCOT, SPINNER, nameColor} from './theme.js';
 import {Clickable} from './mouse.js';
 import {parseContent, displayName, formatTime, formatBytes, preview} from '../format.js';
+import {fitCells, imageSources, loadImage} from '../images.js';
 
 const h = React.createElement;
-export const VERSION = '2.1.1';
+export const VERSION = '2.2.0';
 
 // ---------- Logo + welcome banner ----------
 
@@ -241,9 +242,41 @@ function Content({msg, client, color}) {
 	);
 }
 
-function Extras({msg}) {
+// An image drawn with half-blocks. Click it to open the full-size viewer.
+export function ImagePreview({src, maxCols, maxRows, onOpen}) {
+	const {cols, rows} = fitCells(src.width, src.height, maxCols, maxRows);
+	const [state, setState] = useState({lines: null, error: null});
+	useEffect(() => {
+		let alive = true;
+		setState({lines: null, error: null});
+		loadImage(src, cols, rows).then(
+			lines => alive && setState({lines, error: null}),
+			err => alive && setState({lines: null, error: err.message}),
+		);
+		return () => {
+			alive = false;
+		};
+	}, [src.proxyUrl, src.demo, cols, rows]); // eslint-disable-line react-hooks/exhaustive-deps
+	const body = state.lines
+		? state.lines.map((line, i) => h(Text, {key: i}, line))
+		: h(
+				Box,
+				{height: rows, width: cols, backgroundColor: '#2B2D31', alignItems: 'center', justifyContent: 'center'},
+				h(Text, {color: state.error ? theme.red : theme.dim}, state.error ? `⚠ couldn't load image` : '⧗ loading image…'),
+			);
+	return h(Clickable, {flexDirection: 'column', width: Math.max(cols, 24), marginTop: 1, onClick: () => onOpen?.(src)}, hovered => [
+		h(Box, {key: 'img', flexDirection: 'column'}, body),
+		h(Text, {key: 'cap', color: hovered ? theme.brandLight : theme.dim, wrap: 'truncate-end'}, hovered ? '🔍 click to view full size' : `🖼  ${src.name ?? 'image'}`),
+	]);
+}
+
+function Extras({msg, onOpenImage, imageCols = 48}) {
 	const lines = [];
+	const images = imageSources(msg);
+	for (const src of images) lines.push(h(ImagePreview, {key: `img-${src.key}`, src, maxCols: imageCols, maxRows: 12, onOpen: onOpenImage}));
+	const shown = new Set(images.map(i => i.key));
 	for (const a of msg.attachments ?? []) {
+		if (shown.has(a.id ?? a.filename)) continue;
 		lines.push(
 			h(
 				Text,
@@ -283,7 +316,7 @@ const SYSTEM_TYPES = {
 	18: m => `🧵 ${displayName(m.author, m.member)} started a thread: ${m.content}`,
 };
 
-export function MessageView({msg, client, compact}) {
+export function MessageView({msg, client, compact, onOpenImage, imageCols}) {
 	if (SYSTEM_TYPES[msg.type]) {
 		return h(Box, {paddingLeft: 2, marginTop: 1}, h(Text, {color: theme.dim}, SYSTEM_TYPES[msg.type](msg)));
 	}
@@ -301,7 +334,7 @@ export function MessageView({msg, client, compact}) {
 				Box,
 				{backgroundColor: theme.userBg, paddingRight: 1},
 				h(Text, {color: theme.subtle}, '> '),
-				h(Box, {flexDirection: 'column', flexGrow: 1}, h(Content, {msg, client, color: theme.text}), h(Extras, {msg})),
+				h(Box, {flexDirection: 'column', flexGrow: 1}, h(Content, {msg, client, color: theme.text}), h(Extras, {msg, onOpenImage, imageCols})),
 			),
 		);
 	}
@@ -330,7 +363,7 @@ export function MessageView({msg, client, compact}) {
 				...(mentioned ? {borderStyle: 'bold', borderColor: theme.yellow, borderTop: false, borderRight: false, borderBottom: false, paddingLeft: 1, marginLeft: 1} : {}),
 			},
 			h(Content, {msg, client, color: theme.text}),
-			h(Extras, {msg}),
+			h(Extras, {msg, onOpenImage, imageCols}),
 		),
 	);
 }

@@ -46,31 +46,49 @@ export function createMouseStdin(stdin = process.stdin, stdout = process.stdout)
 		if (rest) proxy.push(rest);
 	});
 
+	let enabled = true;
 	const disable = () => stdout.write(DISABLE);
+	// Turning tracking off hands the mouse back to the terminal for normal text selection.
+	const setEnabled = on => {
+		enabled = on;
+		stdout.write(on ? ENABLE : DISABLE);
+	};
 	stdout.write(ENABLE);
 	process.on('exit', disable);
-	return {stdin: proxy, mouse, disable};
+	return {stdin: proxy, mouse, disable, setEnabled, isEnabled: () => enabled};
 }
 
 // ---------- Hit-testing ----------
 
-function rectOf(node) {
+function absRect(node) {
 	let x = 0;
 	let y = 0;
-	const yoga = node?.yogaNode;
-	if (!yoga) return null;
-	const width = yoga.getComputedWidth();
-	const height = yoga.getComputedHeight();
 	for (let n = node; n?.yogaNode; n = n.parentNode) {
 		x += n.yogaNode.getComputedLeft();
 		y += n.yogaNode.getComputedTop();
 	}
-	return {x, y, width, height};
+	return {x, y, width: node.yogaNode.getComputedWidth(), height: node.yogaNode.getComputedHeight()};
+}
+
+// On-screen rectangle of a box, clipped by any overflow:hidden ancestors.
+function rectOf(node) {
+	if (!node?.yogaNode) return null;
+	let r = absRect(node);
+	for (let p = node.parentNode; p?.yogaNode; p = p.parentNode) {
+		if (p.style?.overflow !== 'hidden' && p.style?.overflowY !== 'hidden') continue;
+		const c = absRect(p);
+		const x = Math.max(r.x, c.x);
+		const y = Math.max(r.y, c.y);
+		const right = Math.min(r.x + r.width, c.x + c.width);
+		const bottom = Math.min(r.y + r.height, c.y + c.height);
+		r = {x, y, width: Math.max(0, right - x), height: Math.max(0, bottom - y)};
+	}
+	return r;
 }
 
 const MouseContext = createContext(null);
 
-export function MouseProvider({mouse, children}) {
+export function MouseProvider({mouse, control, children}) {
 	const regs = useRef(new Map());
 	const [hover, setHover] = useState(null);
 	const hoverRef = useRef(null);
@@ -129,7 +147,7 @@ export function MouseProvider({mouse, children}) {
 		};
 	}, [mouse]);
 
-	const value = useMemo(() => ({...api, hover}), [api, hover]);
+	const value = useMemo(() => ({...api, hover, control}), [api, hover, control]);
 	return h(MouseContext.Provider, {value}, children);
 }
 
@@ -146,4 +164,9 @@ export function Clickable({onClick, onWheel, onOutside, layer = 0, disabled, hov
 	useEffect(() => ctx?.register(idRef.current, {ref, layer, disabled, hoverable, handlers: () => handlers.current}), [ctx, layer, disabled, hoverable]);
 	const hovered = ctx?.hover === idRef.current;
 	return h(Box, {ref, ...boxProps}, typeof children === 'function' ? children(hovered) : children);
+}
+
+// {setEnabled(on), isEnabled()} when mouse support is active, otherwise null.
+export function useMouseControl() {
+	return useContext(MouseContext)?.control ?? null;
 }

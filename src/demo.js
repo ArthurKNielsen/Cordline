@@ -172,7 +172,13 @@ export class DemoClient extends DiscordClient {
 						];
 			}
 			const msgs = lines.map(([who, text], i) => this.makeMessage(channelId, who, text, (lines.length - i) * 3));
+			const picture = (who, text, minutesAgo, file, scene) => ({
+				...this.makeMessage(channelId, who, text, minutesAgo),
+				attachments: [{id: file, filename: file, size: 2_400_000, width: 1600, height: 900, content_type: 'image/png', url: `https://cdn.discordapp.com/attachments/demo/${file}`, _demo: scene}],
+			});
+			if (channelId === 'g1:general') msgs.splice(3, 0, picture('mira', 'sunset from my window rn 🌅', 20, 'sunset_from_my_window.png', 'sunset'));
 			if (channelId === 'g1:clips') {
+				msgs.push(picture('nova', 'new map preview just dropped', 4, 'new_map_preview.png', 'synthwave'));
 				msgs.push({
 					...this.makeMessage(channelId, 'zed', 'insane 1v4 clutch'),
 					attachments: [{filename: 'clutch_1v4.mp4', size: 18_400_000, url: 'https://cdn.discordapp.com/attachments/clutch_1v4.mp4'}],

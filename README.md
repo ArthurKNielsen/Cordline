@@ -13,7 +13,9 @@
 - **Discord layout.** The full-screen view has a server rail, a channel sidebar with categories, the chat in the middle and a member list on the right. Unread badges appear on servers and channels, plus a "Welcome to #channel!" header at the start of each channel.
 - **Clean terminal look.** Panels have rounded borders with titles set into the border, and the app has a `>` prompt box, `/` command autocomplete, `●` message bullets, `❯` selection, a `✻` spinner with "esc to interrupt", and a `? for shortcuts` status line, all in Discord blurple. Your own messages are shown as highlighted `>` lines.
 - **Your real Discord.** You can browse servers, channels, DMs and group DMs. Message history loads when you open a channel, and new messages arrive live over the Discord Gateway.
-- **Mouse support.** Click servers, channels, DMs, people, buttons and menu items, use the scroll wheel to scroll chat, and click anywhere outside a popup to close it. Everything you hover over lights up. Hold `shift` while dragging to select text the usual way, or start with `--no-mouse` to turn mouse support off.
+- **Images in chat.** Pictures in messages and link previews are drawn right in the terminal in full color. Click one to open it full size, open it in your browser, or copy its link.
+- **Copy anything.** Click a message for actions: copy its text, copy its link, copy the author's username, open links or attachments. `/copy` copies the last message. Press `ctrl+t` (or click **⌶ Select text**) to switch to select mode, where you can drag to select any text on screen and copy it the normal way. Press `esc` when you're done.
+- **Mouse support.** Click servers, channels, DMs, people, buttons and menu items, use the scroll wheel to scroll chat, and click anywhere outside a popup to close it. Everything you hover over lights up. To select text, press `ctrl+t` or hold `shift` while dragging. You can also start with `--no-mouse` to turn mouse support off.
 - **Keyboard navigation.** `tab` moves to the sidebar, `←/→` switches servers, `alt+↑/↓` moves to the previous or next channel, `ctrl+k` opens a quick switcher, and `pgup/pgdn` scrolls.
 - **Live updates.** You get typing indicators ("Nova is typing..."), DM and mention notifications, and an unread counter.
 - **Discord markdown** rendering: **bold**, *italics*, `code`, code blocks, quotes, spoilers, mentions, channel links, custom emoji, timestamps, attachments and embeds.
@@ -28,6 +30,7 @@
 | ![code blocks](docs/screenshots/code.png) | ![DMs](docs/screenshots/dm.png) |
 | ![commands](docs/screenshots/commands.png) | ![shortcuts](docs/screenshots/shortcuts.png) |
 | ![login](docs/screenshots/login.png) | ![mouse hover](docs/screenshots/mouse.png) |
+| ![image viewer](docs/screenshots/image-viewer.png) | ![message actions](docs/screenshots/message-actions.png) |
 
 ## Install
 
@@ -76,7 +79,7 @@ cordline          # log in for real
 Cordline does not share your token or any other information with anyone.
 
 - **Your token stays on your device.** It is saved locally in `~/.config/cordline/config.json`. On macOS and Linux the file can be read only by your user account. It is not encrypted, so treat that file like a password.
-- **Only Discord's official servers.** The app connects only to Discord's API (`discord.com`) and Discord's live-messaging gateway (`gateway.discord.gg`). Your token is sent only to those servers, and only to log you in.
+- **Only Discord's official servers.** The app connects only to Discord's API (`discord.com`), Discord's live-messaging gateway (`gateway.discord.gg`) and Discord's media servers for images (`cdn.discordapp.com`, `media.discordapp.net`). Your token is sent only to those servers, and only to log you in.
 - **No third parties.** Cordline has no servers of its own and does not use analytics, tracking, crash reporting or advertising. Your messages, servers and account details never leave the connection between your device and Discord.
 - **You stay in control.** Run `/logout` or `cordline --logout` at any time to delete the saved token from your device. Changing your Discord password also resets the token everywhere.
 - **Open source.** The full source code is in this repository, so you can verify everything above yourself. All network code is in [`src/discord.js`](src/discord.js).
@@ -116,6 +119,8 @@ You can also pass a token directly: `DISCORD_TOKEN=... cordline`, or `cordline -
 | `/goto [name]` | Jump to any channel or DM |
 | `/reload` | Reload the current channel |
 | `/clear` | Clear the chat view |
+| `/copy` | Copy the last message in the channel |
+| `/select` | Select mode for copying text with the mouse |
 | `/whoami` | Show the logged-in account |
 | `/help` | Help |
 | `/logout` | Forget the token and exit |
@@ -133,6 +138,7 @@ You can also pass a token directly: `DISCORD_TOKEN=... cordline`, or `cordline -
 | `esc` | Cancel, interrupt loading, or jump back to the newest message |
 | `ctrl+l` | Clear the chat view |
 | `ctrl+u` / `ctrl+w` | Clear the line / delete a word |
+| `ctrl+t` | Select mode: drag to select and copy text (`esc` to leave) |
 | `ctrl+c` ×2 | Exit |
 
 **Mouse:** click anything in the sidebar, server list, member list, popups or the bottom bar (⌕ Jump, # Servers, @ DMs, ? Help). Scroll the wheel over the chat to read older messages, or over the sidebar to move through channels. Click the message box to put your cursor there.

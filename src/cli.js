@@ -76,7 +76,7 @@ export async function main(argv) {
 	}
 
 	const mouse = args.includes('--no-mouse') ? null : createMouseStdin();
-	const instance = render(h(MouseProvider, {mouse: mouse?.mouse}, h(Root, {initialClient: client, demo})), {
+	const instance = render(h(MouseProvider, {mouse: mouse?.mouse, control: mouse}, h(Root, {initialClient: client, demo})), {
 		exitOnCtrlC: false,
 		alternateScreen: true,
 		incrementalRendering: true,

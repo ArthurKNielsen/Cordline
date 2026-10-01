@@ -2,10 +2,13 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Box, Text, useApp, useInput, usePaste, useStdout, useWindowSize} from 'ink';
 import {theme} from './theme.js';
 import {Banner, MessageView, Picker, PromptInput, Spinner, SystemLine, TypingLine} from './components.js';
+import {ImageViewer} from './ImageViewer.js';
 import {HOME, MemberList, Panel, ServerRail, Sidebar, sidebarEntries} from './layout.js';
-import {Clickable} from './mouse.js';
+import {Clickable, useMouseControl} from './mouse.js';
+import {copyText, openUrl} from '../clipboard.js';
+import {imageSources} from '../images.js';
 import {ChannelType, isTextChannel} from '../discord.js';
-import {displayName, preview} from '../format.js';
+import {displayName, parseContent, preview} from '../format.js';
 
 const h = React.createElement;
 
@@ -17,6 +20,8 @@ export const COMMANDS = [
 	{name: 'reload', desc: 'Reload messages in the current channel'},
 	{name: 'clear', desc: 'Clear the chat view (ctrl+l)'},
 	{name: 'whoami', desc: 'Show the account you are logged in as'},
+	{name: 'copy', desc: 'Copy the last message in this channel'},
+	{name: 'select', desc: 'Select and copy text with the mouse (ctrl+t)'},
 	{name: 'help', desc: 'Show help and keyboard shortcuts'},
 	{name: 'logout', desc: 'Forget the saved token and exit'},
 	{name: 'exit', desc: 'Exit Cordline'},
@@ -27,8 +32,18 @@ const SHORTCUTS = [
 	['tab to browse channels', '←/→ switch server (while browsing)'],
 	['alt+↑/↓ prev/next channel', 'pgup/pgdn to scroll'],
 	['↑/↓ input history', '\\⏎ for a newline'],
+	['click a message to copy / view images', 'ctrl+t to select text with the mouse'],
 	['esc to cancel / interrupt', 'ctrl+c twice to exit'],
 ];
+
+// Message text as plain text: mentions, channels and emoji resolved, markdown removed.
+function plainText(msg, client) {
+	return parseContent(msg.content ?? '', {client, msg})
+		.map(b => (b.type === 'code' ? b.code : b.type === 'quote' ? `> ${b.segments.map(x => x.text).join('')}` : b.segments.map(x => x.text).join('')))
+		.join('\n');
+}
+
+const messageLink = msg => `https://discord.com/channels/${msg.guild_id ?? '@me'}/${msg.channel_id}/${msg.id}`;
 
 const MAX_RENDERED = 60;
 let entrySeq = 0;
@@ -54,6 +69,8 @@ export function App({client, demo, onLogout}) {
 	const [acIndex, setAcIndex] = useState(0);
 	const [scroll, setScroll] = useState(0);
 	const [status, setStatus] = useState('connected');
+	const [selectMode, setSelectMode] = useState(false);
+	const mouseControl = useMouseControl();
 	const [, setTick] = useState(0);
 	const rerender = useCallback(() => setTick(x => x + 1), []);
 
@@ -249,6 +266,52 @@ export function App({client, demo, onLogout}) {
 		exit();
 	}, [client, exit]);
 
+	// ---------- Copy, links, images ----------
+
+	const copy = useCallback(
+		async (text, what = 'Copied') => {
+			await copyText(text);
+			flash(`✓ ${what} to clipboard`, theme.green, 2500);
+		},
+		[flash],
+	);
+
+	const toggleSelect = useCallback(() => {
+		if (!mouseControl) return flash('Mouse support is off, so you can already select text normally.', theme.subtle, 3000);
+		setSelectMode(on => {
+			mouseControl.setEnabled(on);
+			return !on;
+		});
+	}, [mouseControl, flash]);
+
+	const openImage = useCallback(src => setOverlay({kind: 'image', src}), []);
+
+	const openMessageActions = useCallback(
+		msg => {
+			const items = [];
+			const text = plainText(msg, client);
+			if (text.trim()) items.push({key: 'copy', label: 'Copy text', icon: '⧉', run: () => copy(text, 'Message copied')});
+			for (const src of imageSources(msg)) items.push({key: `v${src.key}`, label: `View image  ${src.name ?? ''}`, icon: '🖼', run: () => openImage(src)});
+			for (const url of new Set((msg.content ?? '').match(/https?:\/\/[^\s<>]+/g) ?? [])) items.push({key: `l${url}`, label: `Open link  ${url}`, icon: '↗', run: () => openUrl(url)});
+			for (const a of msg.attachments ?? []) {
+				items.push({key: `o${a.url}`, label: `Open ${a.filename} in browser`, icon: '↗', run: () => openUrl(a.url)});
+				items.push({key: `c${a.url}`, label: `Copy link to ${a.filename}`, icon: '🔗', run: () => copy(a.url, 'Link copied')});
+			}
+			if (msg.id && !String(msg.id).startsWith('demo')) items.push({key: 'link', label: 'Copy message link', icon: '🔗', run: () => copy(messageLink(msg), 'Message link copied')});
+			items.push({key: 'author', label: `Copy username  @${msg.author?.username ?? ''}`, icon: '@', run: () => copy(msg.author?.username ?? '', 'Username copied')});
+			setOverlay({
+				title: `Message from ${displayName(msg.author, msg.member)}`,
+				subtitle: preview(msg, 60) || ' ',
+				items: items.map(it => ({...it, value: it.key})),
+				onSelect: it => {
+					setOverlay(null);
+					it.run();
+				},
+			});
+		},
+		[client, copy, openImage],
+	);
+
 	// ---------- Commands ----------
 
 	const runCommand = useCallback(
@@ -277,6 +340,14 @@ export function App({client, demo, onLogout}) {
 				case 'clear':
 					entriesRef.current.set(currentRef.current ?? 'home', []);
 					return rerender();
+				case 'copy': {
+					const last = [...(entriesRef.current.get(currentRef.current) ?? [])].reverse().find(e => e.kind === 'msg' && e.msg.content);
+					if (!last) return reply(['  ⎿  Nothing to copy here yet'], 'error');
+					copy(plainText(last.msg, client), 'Last message copied');
+					return;
+				}
+				case 'select':
+					return toggleSelect();
 				case 'whoami':
 					return reply([
 						`  ⎿  Logged in as ${client.user.global_name ?? client.user.username} (@${client.user.username}) · ${client.isBot ? 'bot account' : demo ? 'demo account' : 'user account'} · ${client.guilds.size} servers`,
@@ -299,7 +370,7 @@ export function App({client, demo, onLogout}) {
 					return reply([`  ⎿  Unknown command /${cmd} — type /help`], 'error');
 			}
 		},
-		[client, demo, pushHere, openServerPicker, selectGuild, openSwitcher, openChannel, rerender, quit, onLogout],
+		[client, demo, pushHere, openServerPicker, selectGuild, openSwitcher, openChannel, rerender, quit, onLogout, copy, toggleSelect],
 	);
 
 	const submit = useCallback(async () => {
@@ -383,6 +454,8 @@ export function App({client, demo, onLogout}) {
 				flash('Press Ctrl-C again to exit', theme.subtle, 2000);
 				return;
 			}
+			if (key.ctrl && input === 't') return toggleSelect();
+			if (selectMode && key.escape) return toggleSelect();
 			if (key.ctrl && input === 'k') return openSwitcher();
 			if (key.ctrl && input === 'l') {
 				entriesRef.current.set(currentRef.current ?? 'home', []);
@@ -537,7 +610,13 @@ export function App({client, demo, onLogout}) {
 			const prev = shown[i - 1];
 			const p = prev?.kind === 'msg' ? prev.msg : null;
 			const compact = Boolean(p && p.author?.id === e.msg.author?.id && new Date(e.msg.timestamp) - new Date(p.timestamp) < 7 * 60000 && !e.msg.referenced_message && e.msg.type === 0);
-			return h(MessageView, {key: e.id, msg: e.msg, client, compact});
+			return h(Clickable, {key: e.id, flexDirection: 'column', onClick: () => openMessageActions(e.msg)}, hovered =>
+				h(
+					Box,
+					{flexDirection: 'column', backgroundColor: hovered ? '#2A2C31' : undefined},
+					h(MessageView, {msg: e.msg, client, compact, onOpenImage: openImage, imageCols: Math.min(56, mainInner - 8)}),
+				),
+			);
 		}
 		if (e.kind === 'start') {
 			const label = channelLabel(e.ch);
@@ -650,7 +729,7 @@ export function App({client, demo, onLogout}) {
 
 	const where = ch ? `${guild ? guild.name : 'DMs'} › ${channelLabel(ch)}` : status === 'connected' ? (demo ? 'demo mode' : 'connected') : 'reconnecting…';
 	const button = (key, label, onClick, active) =>
-		h(Clickable, {key, marginRight: 1, onClick}, hovered =>
+		h(Clickable, {key, marginRight: 1, flexShrink: 0, onClick}, hovered =>
 			h(Text, {backgroundColor: hovered || active ? theme.brand : '#2B2D31', color: hovered || active ? '#FFFFFF' : theme.subtle, bold: hovered || active}, ` ${label} `),
 		);
 	const statusBar = h(
@@ -659,17 +738,26 @@ export function App({client, demo, onLogout}) {
 		h(
 			Box,
 			{flexShrink: 1},
-			button('jump', '⌕ Jump', () => openSwitcher()),
-			button('servers', '# Servers', openServerPicker),
-			button('dms', '@ DMs', () => {
-				selectGuild(HOME);
-				setFocus('nav');
-			}),
-			button('help', '? Help', () => setShowHelp(x => !x), showHelp),
+			selectMode ? null : button('jump', '⌕ Jump', () => openSwitcher()),
+			selectMode ? null : button('servers', '# Servers', openServerPicker),
+			selectMode
+				? null
+				: button('dms', '@ DMs', () => {
+						selectGuild(HOME);
+						setFocus('nav');
+					}),
+			selectMode ? null : button('help', '? Help', () => setShowHelp(x => !x), showHelp),
+			mouseControl ? button('select', '⌶ Select text', toggleSelect, selectMode) : null,
 			h(
 				Text,
-				{color: theme.dim, wrap: 'truncate-end'},
-				notice?.color === theme.subtle ? ` ${notice.text}` : focus === 'nav' ? ' ↑/↓ select · enter open · ←/→ server · esc chat' : ' tab browse · ctrl+k jump',
+				{color: selectMode ? theme.yellow : theme.dim, bold: selectMode, wrap: 'truncate-end'},
+				selectMode
+					? ' SELECT MODE · drag to select text, then copy as usual · esc or ctrl+t when done'
+					: notice?.color === theme.subtle
+						? ` ${notice.text}`
+						: focus === 'nav'
+							? ' ↑/↓ select · enter open · ←/→ server · esc chat'
+							: ' tab browse · ctrl+k jump',
 			),
 		),
 		h(
@@ -730,12 +818,21 @@ export function App({client, demo, onLogout}) {
 			membersW ? h(MemberList, {client, channel: ch, authors, width: membersW, height, onOpenDM: id => openChannel(id)}) : null,
 		),
 		statusBar,
-		overlay
-			? h(
-					Box,
-					{position: 'absolute', top: 3, left: Math.floor((columns - modalW) / 2), width: modalW},
-					h(Picker, {...overlay, key: overlay.title, rows, width: modalW, backgroundColor: theme.modalBg, onCancel: () => setOverlay(null)}),
-				)
-			: null,
+		overlay?.kind === 'image'
+			? h(ImageViewer, {
+					src: overlay.src,
+					columns,
+					rows,
+					onClose: () => setOverlay(null),
+					onOpen: () => openUrl(overlay.src.url),
+					onCopy: () => copy(overlay.src.url, 'Image link copied'),
+				})
+			: overlay
+				? h(
+						Box,
+						{position: 'absolute', top: 3, left: Math.floor((columns - modalW) / 2), width: modalW},
+						h(Picker, {...overlay, key: overlay.title, rows, width: modalW, backgroundColor: theme.modalBg, onCancel: () => setOverlay(null)}),
+					)
+				: null,
 	);
 }

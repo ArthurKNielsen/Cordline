@@ -15,6 +15,7 @@ Cordline does not collect, store remotely, sell or share your token, your messag
 | Your Discord token (user or bot) | To sign in to your Discord account | Saved on your device; sent only to Discord's official servers |
 | Your servers, channels, direct messages and messages | Displayed in the app while you use it | Received from Discord and held in memory only; never written to disk or sent anywhere else |
 | Messages you send | Delivered to the channel you choose | Sent only to Discord |
+| Images in messages | Displayed in the app | Downloaded from Discord's media servers and held in memory only |
 
 ## Local storage
 
@@ -29,8 +30,14 @@ Cordline connects only to:
 
 - `https://discord.com/api`, Discord's official API, to load and send messages
 - `wss://gateway.discord.gg` (and the gateway URLs Discord provides during a session), Discord's official real-time messaging service
+- `cdn.discordapp.com` and `media.discordapp.net`, Discord's official media servers, to display images in messages. Link-preview images are always loaded through Discord's media proxy, never directly from other websites.
 
 Cordline does not contact any other servers. It contains no analytics, telemetry, crash reporting, advertising or tracking of any kind, and its developers have no servers that could receive your data.
+
+## Copying and opening links
+
+- **Copy** places text in your system clipboard using your operating system's own clipboard tool (or your terminal's clipboard feature). Nothing is sent over the network.
+- **Open in browser** only happens when you choose it. The link opens in your default web browser, which then connects to that website like any link you click.
 
 ## Demo mode
 
