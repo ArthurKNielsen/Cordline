@@ -1,0 +1,39 @@
+{
+  "name": "discord-terminal",
+  "version": "1.0.0",
+  "description": "Discord, but in your terminal — styled like Claude Code",
+  "main": "src/cli.js",
+  "scripts": {
+    "start": "node bin/discord-terminal.js",
+    "demo": "node bin/discord-terminal.js --demo"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EnSpecielPerson/Discord-Terminal.git"
+  },
+  "keywords": [
+    "discord",
+    "terminal",
+    "tui",
+    "ink",
+    "cli"
+  ],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/EnSpecielPerson/Discord-Terminal/issues"
+  },
+  "homepage": "https://github.com/EnSpecielPerson/Discord-Terminal#readme",
+  "dependencies": {
+    "ink": "^7.1.1",
+    "react": "^19.3.0",
+    "ws": "^8.22.0"
+  },
+  "type": "module",
+  "bin": {
+    "discord-terminal": "bin/discord-terminal.js"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
