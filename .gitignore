@@ -3,3 +3,5 @@ node_modules/
 .DS_Store
 screenshots/frames/
 dist/
+trailer/*.wav
+trailer/*-no-music.mp4
