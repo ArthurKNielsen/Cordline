@@ -114,10 +114,18 @@ export function Login({onDone, initialError}) {
 								h(Text, {color: theme.yellow, bold: true}, '⚠ Heads up'),
 								h(Text, {color: theme.subtle}, 'Using a user token in a third-party client ("self-botting") is against Discord\'s Terms of'),
 								h(Text, {color: theme.subtle}, 'Service and can get your account flagged or banned. Never share your token with anyone —'),
-								h(Text, {color: theme.subtle}, 'it is a full password for your account. It stays on this machine only.'),
+								h(Text, {color: theme.subtle}, 'it gives full access to your account.'),
 							)
 						: h(Text, {color: theme.subtle}, 'discord.com/developers → your app → Bot → Reset Token. Enable the MESSAGE CONTENT intent.'),
 					h(Box, {marginTop: 1}, h(PromptInput, {value: token, cursor: token.length, placeholder: 'Token goes here…', columns: Math.min(columns, 100), masked: true})),
+					h(
+						Box,
+						{flexDirection: 'column', paddingX: 2, marginBottom: 1},
+						h(Text, {color: theme.green, bold: true}, '🔒 Your privacy'),
+						h(Text, {color: theme.subtle}, "Your token is stored only on this device and is sent only to Discord's official servers."),
+						h(Text, {color: theme.subtle}, 'Cordline has no servers of its own, collects no analytics, and never shares your token,'),
+						h(Text, {color: theme.subtle}, 'messages or any other information with anyone.'),
+					),
 					error ? h(Text, {color: theme.red}, `  ⎿  ${error}`) : null,
 					step === 'validating'
 						? h(Spinner, {label: 'Connecting to Discord…', startedAt})

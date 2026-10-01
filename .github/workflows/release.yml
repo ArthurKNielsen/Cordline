@@ -44,3 +44,7 @@ jobs:
 
             No Node.js needed. Just download and run it from a terminal.
             Try `cordline --demo` first to see it with fake data.
+
+            ## Privacy
+
+            Cordline never shares your token or any other information with anyone. Your token is stored only on your device and is sent only to Discord's official servers. There are no analytics or third-party services. See [PRIVACY.md](https://github.com/${{ github.repository }}/blob/main/PRIVACY.md).

@@ -5,7 +5,7 @@ import {Clickable} from './mouse.js';
 import {parseContent, displayName, formatTime, formatBytes, preview} from '../format.js';
 
 const h = React.createElement;
-export const VERSION = '2.1.0';
+export const VERSION = '2.1.1';
 
 // ---------- Logo + welcome banner ----------
 

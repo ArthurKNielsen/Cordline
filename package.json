@@ -1,6 +1,6 @@
 {
   "name": "cordline",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Discord, in your terminal.",
   "main": "src/cli.js",
   "scripts": {

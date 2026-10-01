@@ -71,6 +71,18 @@ cordline --demo   # try it with fake data first
 cordline          # log in for real
 ```
 
+## Privacy & security
+
+Cordline does not share your token or any other information with anyone.
+
+- **Your token stays on your device.** It is saved locally in `~/.config/cordline/config.json`. On macOS and Linux the file can be read only by your user account. It is not encrypted, so treat that file like a password.
+- **Only Discord's official servers.** The app connects only to Discord's API (`discord.com`) and Discord's live-messaging gateway (`gateway.discord.gg`). Your token is sent only to those servers, and only to log you in.
+- **No third parties.** Cordline has no servers of its own and does not use analytics, tracking, crash reporting or advertising. Your messages, servers and account details never leave the connection between your device and Discord.
+- **You stay in control.** Run `/logout` or `cordline --logout` at any time to delete the saved token from your device. Changing your Discord password also resets the token everywhere.
+- **Open source.** The full source code is in this repository, so you can verify everything above yourself. All network code is in [`src/discord.js`](src/discord.js).
+
+See [PRIVACY.md](PRIVACY.md) for the full privacy statement.
+
 ## Logging in
 
 On first launch you choose a login method and paste a token. The token is saved to `~/.config/cordline/config.json` (file mode `600`). Run `/logout` or `cordline --logout` to remove it.
